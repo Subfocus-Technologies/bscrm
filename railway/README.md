@@ -24,6 +24,31 @@ schedule) are set on each Railway service, not in a config file: Railway has dep
 - **Private networking.** The API reaches the agent, and the cron reaches the API,
   over `*.railway.internal`. The agent listens on `::` because that network is IPv6.
 
+## Google sign-in
+
+One OAuth client signs people in and reads their Gmail and Calendar. In the Google Cloud
+console, signed in to the subfocustech.co.uk Workspace:
+
+1. Create a project, `bscrm`.
+2. **APIs & Services → Library**: enable the **Gmail API** and the **Google Calendar API**.
+3. **OAuth consent screen**: user type **Internal**. Gmail's read scope is restricted, so an
+   External app would need Google's verification and a yearly security assessment.
+   Internal also keeps everyone outside the domain off the prompt.
+4. **Credentials → Create credentials → OAuth client ID → Web application**:
+   - Authorised JavaScript origin: `https://crm.subfocustech.co.uk`
+   - Authorised redirect URI: `https://crm-api.subfocustech.co.uk/api/auth/callback/google`
+5. Put the client ID and secret on the Railway `api` service as `GOOGLE_CLIENT_ID` and
+   `GOOGLE_CLIENT_SECRET`. Set both or neither.
+
+## DNS
+
+subfocustech.co.uk's DNS is not on Vercel or Railway, so the records are added by hand:
+
+| Name | Type | Value |
+| --- | --- | --- |
+| `crm` | CNAME | `cname.vercel-dns.com` (the Vercel app) |
+| `crm-api` | CNAME | `g6pxf1g3.up.railway.app` (the Railway `api` service) |
+
 ## Variables
 
 All three services share `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `AGENT_BRIDGE_SECRET`,
