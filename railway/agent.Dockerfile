@@ -1,4 +1,3 @@
-# eve refuses to build or start on anything older than Node 24.
 FROM node:24-slim
 COPY --from=oven/bun:1.3.12-slim /usr/local/bin/bun /usr/local/bin/bun
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssl && rm -rf /var/lib/apt/lists/*
@@ -8,5 +7,4 @@ RUN DATABASE_URL=postgresql://build@localhost:5432/build bun install --frozen-lo
 WORKDIR /app/apps/agent
 RUN DATABASE_URL=postgresql://build@localhost:5432/build bun run build
 ENV NODE_ENV=production
-# "::" listens on IPv6 as well, which Railway's private network needs for the API to reach it.
 CMD ["sh", "-c", "exec node_modules/.bin/eve start --host :: --port ${PORT:-2000}"]

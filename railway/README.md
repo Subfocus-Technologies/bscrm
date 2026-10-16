@@ -24,6 +24,9 @@ schedule) are set on each Railway service, not in a config file: Railway has dep
   (default `qwen3.6-plus`), the settings page's model choice is ignored while the key is set,
   and eve's built-in `web_search` is unavailable because it is a gateway tool. Without the key it
   falls back to the gateway, which needs `AI_GATEWAY_API_KEY` off Vercel.
+  Each agent returns the Qwen model from `step.started`: eve rejects a provider object from
+  `session.started`, and a step choice outranks the session's. The context window is 256k
+  because Qwen bills input past 256k tokens at a higher rate.
 - **Migrations** run on every `api` deploy (pre-deploy), not only in production.
 - **Private networking.** The API reaches the agent, and the cron reaches the API,
   over `*.railway.internal`. The agent listens on `::` because that network is IPv6.

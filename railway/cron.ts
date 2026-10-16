@@ -1,6 +1,3 @@
-// Railway starts this every five minutes and it exits. It stands in for the
-// crons in apps/api/vercel.json, which only Vercel reads.
-
 const base = process.env.API_INTERNAL_URL;
 const secret = process.env.CRON_SECRET;
 
@@ -9,8 +6,6 @@ if (!base || !secret) {
 	process.exit(1);
 }
 
-// The daily jobs keep the UTC hours vercel.json gives them. Only the tick in
-// the first five minutes of that hour runs one, so each fires once a day.
 const DAILY = new Map([
 	[4, "/internal/tracking/retention"],
 	[5, "/internal/archive/prune"],
