@@ -139,6 +139,7 @@ export const AGENT_TOOLS = [
 	"set_chat_title",
 	"set_contact_socials",
 	"set_field_value",
+	"web_search",
 	"write_brief",
 	"write_workspace_profile",
 ] as const;
