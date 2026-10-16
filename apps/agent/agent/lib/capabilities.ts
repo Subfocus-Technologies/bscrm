@@ -67,6 +67,12 @@ export function capabilitiesFrom(
 			enabled: contextDev !== null,
 		},
 		{
+			...fromEnv("BRAVE_SEARCH_API_KEY"),
+			label: "Web search",
+			gives:
+				"a web_search tool that returns titles, URLs and snippets from the open web, for when the model provider has no search of its own",
+		},
+		{
 			...fromEnv("BLOB_READ_WRITE_TOKEN"),
 			label: "Picture storage",
 			gives:

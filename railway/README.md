@@ -27,6 +27,9 @@ schedule) are set on each Railway service, not in a config file: Railway has dep
   Each agent returns the Qwen model from `step.started`: eve rejects a provider object from
   `session.started`, and a step choice outranks the session's. The context window is 256k
   because Qwen bills input past 256k tokens at a higher rate.
+- **Web search.** eve's built-in `web_search` is a gateway tool, so `apps/agent/agent/tools/web_search.ts`
+  supplies one backed by Brave Search when `BRAVE_SEARCH_API_KEY` is set. Without the key the file
+  returns no tool and the built-in stays.
 - **Migrations** run on every `api` deploy (pre-deploy), not only in production.
 - **Private networking.** The API reaches the agent, and the cron reaches the API,
   over `*.railway.internal`. The agent listens on `::` because that network is IPv6.
