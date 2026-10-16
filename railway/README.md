@@ -56,4 +56,6 @@ All three services share `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `AGENT_BRIDG
 `BETTER_AUTH_SECRET`, `AUTH_COOKIE_DOMAIN=.subfocustech.co.uk`, `CRON_SECRET`, the Google
 pair and `AGENT_URL` (private). The `cron` has `API_INTERNAL_URL` and `CRON_SECRET`. The
 Vercel app needs the same `BETTER_AUTH_SECRET` and `AGENT_BRIDGE_SECRET`, Postgres's
-public URL, and the agent's public Railway domain as `AGENT_URL`.
+public URL, and the agent's public Railway domain as `AGENT_URL`. It also needs
+`NEXT_PUBLIC_API_URL` set to the API's address: the app's `/api/*` proxy reads that at
+runtime and falls back to `http://localhost:3001`, so `API_URL` alone gives a 502.
