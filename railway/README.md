@@ -1,6 +1,6 @@
 # Running the API and agent on Railway
 
-Our install splits the deploy: the Next.js app (`apps/app`) stays on Vercel, and the API,
+Our install deploys every push to `main`, and splits the deploy: the Next.js app (`apps/app`) stays on Vercel, and the API,
 the agent and the scheduled jobs run in the Railway project `bscrm` beside its Postgres.
 Upstream deploys all three to Vercel. Nothing outside this folder and the root
 `.dockerignore` changes, so upstream merges stay clean.

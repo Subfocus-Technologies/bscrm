@@ -1,3 +1,162 @@
+snt# Subfocus CRM — read this first
+
+This repository is our fork of Comp AI's open-source CRM (`trycompai/crm`). It runs
+the Subfocus team's CRM at https://crm.subfocustech.co.uk. Everything after this
+section is upstream's guidance and still applies. Where the two disagree, this
+section wins.
+
+## The CRM is multi-user
+
+- `luke@subfocustech.co.uk` and `sayu@subfocustech.co.uk` use it today. More
+  colleagues join later. `ALLOWED_SIGN_IN=subfocustech.co.uk` admits the whole domain.
+- All users share one workspace: the same contacts, companies, deals and agents.
+  There are no organizations and no tenants. Do not add them.
+- Each user connects their own mailbox and calendar. Sync is per user.
+- Build every feature for several people at once. A change to a record records
+  the user who made it. A personal preference belongs to that user, not to the
+  workspace. Never assume there is one user.
+
+## Who you are working with
+
+Check `git config user.email` at the start of a session.
+
+**Sayu (`sayu@subfocustech.co.uk`)** is rebuilding this CRM around how we work.
+Sayu has the final say on how it looks, how it is laid out and what it does. Sayu
+is not a developer. Sayu decides what the CRM is. You decide how it is built, and
+you build it to the standard in "How to build it" below.
+
+- Do what Sayu asks for the product. Do not argue with a visual, layout or
+  functional choice, and do not water it down. A full redesign of a page is a
+  normal request.
+- Ask about outcomes, never implementation. Turn "make the button do X" into the
+  correct change yourself.
+- Never offer a choice between technical approaches. Pick the one this file and
+  the area doc prescribe, and explain it in one plain sentence.
+- Explain what changed and how to see it in the CRM, without jargon. Name a file
+  only when Sayu needs to find it.
+- Run every check yourself and fix what fails. Do not hand back errors or commands.
+- When a request seems to need a different tool or provider, build it with the
+  stack and providers below. Only when that is impossible, explain why in plain
+  words and stop for Luke's go-ahead.
+
+**Luke (`luke@subfocustech.co.uk`)** owns the stack, the providers and the platform.
+
+## What Sayu can change
+
+Anything in the product. That includes removing whole features (chat, the agent
+tab, a page, a record type), rebuilding them differently, restructuring the code
+behind them and changing how the CRM looks, is laid out and behaves. Removing a
+feature means removing all of it: its pages, routes, API procedures, agent tools,
+database tables (through a migration) and docs.
+
+## How to build it
+
+Sayu's requests are carried out cleanly, consistently and so they keep working as
+the team and the data grow.
+
+- **One design system.** A visual change goes into `packages/ui` and the theme
+  tokens, so it applies everywhere. Never style one page by hand to look different
+  from the rest. Read `docs/design.md` first.
+- **Reuse, then extend.** Build from existing components, tRPC routers, custom
+  fields and agent tools. When a new piece is needed, make it general enough for
+  the next page that needs it, and then use it in both places.
+- **Every state is designed.** Each screen handles loading, empty, error and
+  "no permission" states, and works on a phone.
+- **Built for growth.** Lists paginate and filter in the database, not in the
+  browser. Queries that a page runs often have an index. Nothing loads every
+  record at once. Nothing has a list of users, stages or options written into the
+  code: those live in data or settings.
+- **Built for several users.** Two people editing at once does not lose either
+  change. Every change records who made it.
+- **No one-off hacks.** No copied components, no special cases for one record, no
+  hidden switches. If a request needs a shortcut, build the proper version instead.
+- **Remove what you replace.** A rebuilt page leaves no old version, unused
+  component or dead route behind.
+
+## The stack and the providers are fixed
+
+Build everything with what is already here. Do not replace any part of this list,
+and do not add an alternative beside it. Changing it needs Luke's explicit go-ahead
+in the conversation.
+
+**Stack**
+
+- TypeScript everywhere, in a Bun and Turborepo monorepo, linted by Biome.
+- `apps/app`: Next.js App Router, with `packages/ui` (shadcn/ui and Tailwind) as
+  the only UI kit.
+- `apps/api`: NestJS with tRPC. The app reaches the API through tRPC only.
+- `packages/db`: Prisma on PostgreSQL.
+- `packages/auth`: Better Auth.
+- `apps/agent`: eve, on the AI SDK.
+
+**Providers**
+
+- Vercel hosts the app. Railway hosts the API, the agent, the cron and Postgres.
+- Google Workspace signs people in and supplies Gmail and Calendar.
+- Alibaba Cloud (Qwen) runs every AI model call, through
+  `apps/agent/agent/lib/model.ts`. Change the model with `QWEN_MODEL`.
+- Brave Search runs web search. Context.dev supplies company and LinkedIn data.
+- GitHub holds the code. A push deploys it.
+
+A new library that works inside this stack is fine when it has a clear reason. A
+new paid service, framework, database, auth library, host or AI provider is not.
+
+**Keep these working, however much else changes**
+
+- Sign-in: only `ALLOWED_SIGN_IN` addresses get in, and every user shares one
+  workspace. See "The CRM is multi-user".
+- Deployment: `railway/` and `railway/README.md`, the root `.dockerignore`, and
+  the Railway and Vercel settings. A change that needs them changed updates them
+  in the same commit.
+- The database: change it only through a Prisma migration made locally
+  (`bun run db:migrate`). Never edit a migration that is already applied. Never
+  run `db push` against the live database. Never drop or rename a column that
+  holds data in one step: add the new column, copy the data, and remove the old
+  one in a later change.
+- Secrets: never in code, chat, logs or commits. `.env.example` documents each
+  variable by name.
+
+## How a change goes live
+
+- `main` is production, and Sayu pushes to it directly. Every push to `main`
+  deploys the app (Vercel) and the API, agent and cron (Railway) within minutes,
+  for the whole team. There is no review step, so the checks are the safety net.
+- There is no staging. Migrations apply to the live database on the next API
+  deploy.
+- Before every push, run the checks and fix what fails: `bun run check-types`,
+  `bun run lint`, `bun run lint:slop`, `bun run lint:dead` and `bun run test`. The
+  pre-push hook runs most of them and refuses the push when one fails. Never skip
+  it with `--no-verify` or `CRM_SKIP_HOOKS`.
+- After a push, confirm the deploy finished and the change works on
+  https://crm.subfocustech.co.uk. When it does not, fix it or revert it at once.
+- Try UI changes locally with `bun run dev` against a local database, never the
+  live one.
+- Upstream's `release` branch, release pull requests and GitHub automations in
+  `CONTRIBUTING.md` do not apply here. Those workflows are switched off in this
+  fork. Only CI runs, on every push to `main`.
+
+## Set up a new machine
+
+Do this once per computer, before the first push. Without it, the pre-push hook
+refuses every push.
+
+1. Install Bun, Node 24 and a Docker runtime (OrbStack on a Mac), and start Docker.
+2. `bun install`, then `cp .env.example .env` for local development values.
+3. `docker compose up -d` starts the local Postgres on port 5432. Then
+   `bun --env-file=.env run db:test` creates the test database that `bun run test`
+   needs. The script does not read `.env` by itself, so keep `--env-file`. When
+   another Postgres already uses port 5432, stop it first.
+4. `bun run dev` runs the CRM locally on http://localhost:3000.
+
+## Keep it clean
+
+- Write code the way upstream does. Read the area doc before you touch an area,
+  and follow every rule below this section.
+- One concern per commit, with a plain message that says what changed and why.
+- A new dependency needs a reason, and goes in its own commit.
+- Pulling updates from `trycompai/crm` (the `upstream` remote) needs Luke's
+  go-ahead. As the rebuild diverges, those merges get harder.
+
 # Strict rules — review before starting any work
 
 **Read the doc for the area you are touching before you touch it.** The table
@@ -16,7 +175,7 @@ context until you read them, and the rules in them are not optional.
 | The tracking script, the collector, form submissions | `docs/tracking.md` |
 | Running it locally, Google Cloud, DB commands, secrets | `docs/setup.md` |
 | Anything that sends a telemetry event, or a new property on one | `docs/telemetry.md` |
-| `.github/workflows`, versions, changelog, how a change reaches `release` | `CONTRIBUTING.md` |
+| `.github/workflows`, versions, changelog (upstream only; see "How a change goes live") | `CONTRIBUTING.md` |
 
 Also check `.agents/skills/` for a relevant skill before starting — better-auth,
 prisma, nestjs-trpc, eve, shadcn, nuqs and others have one. Tell the user which
@@ -250,54 +409,3 @@ it:
 ## Design
 
 @docs/design.md
-
-## Median Tasks
-
-Median can use a project-local workspace binding. If this repository has
-`.median/config.json`, run `mdn` commands from inside this repository so the
-correct Median workspace profile is selected. The local config stores only a
-profile name; API keys stay in your user config.
-
-To bind this repository to a workspace:
-
-```
-mdn setup --local
-```
-
-Before starting work, check your assigned tasks:
-
-```
-mdn tasks --agent <your-agent-name>
-```
-
-When picking up a task:
-
-```
-mdn status <TASK-CODE> in_progress --agent <your-agent-name>
-```
-
-When completing a task:
-
-```
-mdn status <TASK-CODE> ready --agent <your-agent-name>
-```
-
-To create a new task:
-
-```
-mdn create --title "Description" --status todo --priority medium --agent <your-agent-name>
-```
-
-## Commit Messages & Pull Requests
-
-Always include the Median task ID in commit messages and PR titles so tasks get marked automatically.
-
-```
-git commit -m "MDN-42 fix: resolve auth token expiry"
-```
-
-For pull requests, include the task ID in the title:
-
-```
-MDN-42 fix: resolve auth token expiry
-```
