@@ -19,7 +19,11 @@ schedule) are set on each Railway service, not in a config file: Railway has dep
 
 - **Sandbox.** Railway has no Docker, so eve's `defaultBackend()` falls back to its
   built-in shell instead of Vercel Sandbox. It still has no network.
-- **Model access.** Off Vercel there is no OIDC, so the agent needs `AI_GATEWAY_API_KEY`.
+- **Model access.** The agent calls Qwen on Alibaba directly when `ALIBABA_API_KEY` is set
+  (`apps/agent/agent/lib/model.ts`), skipping the AI Gateway. `QWEN_MODEL` picks the model
+  (default `qwen3.6-plus`), the settings page's model choice is ignored while the key is set,
+  and eve's built-in `web_search` is unavailable because it is a gateway tool. Without the key it
+  falls back to the gateway, which needs `AI_GATEWAY_API_KEY` off Vercel.
 - **Migrations** run on every `api` deploy (pre-deploy), not only in production.
 - **Private networking.** The API reaches the agent, and the cron reaches the API,
   over `*.railway.internal`. The agent listens on `::` because that network is IPv6.
