@@ -1,0 +1,12 @@
+# Railway builds the API, agent and cron images from the repo root (see railway/).
+**/node_modules
+**/.next
+**/.turbo
+**/.eve
+**/.output
+**/dist
+.vercel
+.git
+.env
+.env.*
+!.env.example
