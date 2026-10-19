@@ -203,7 +203,7 @@ one of our businesses. `lib/business-filing.ts` holds every rule; the tools
   through it, so records follow their company the same way, and a person's
   ruling is respected for every automatic filing.
 - **The daily limit counts sessions, not filings.** `preflightFiling` defers a
-  task to the next UTC day once `AppSetting.businessFilingDailyLimit` sessions
+  task to the next UK day (midnight in `BUSINESS_FILING_LIMIT.timeZone`) once `AppSetting.businessFilingDailyLimit` sessions
   have started today. Zero turns AI filing off; rules still run.
 - **The brief learns from people.** `lib/business-filing-learning.ts` puts the
   newest hand filings and suggestion decisions into every filing preamble.

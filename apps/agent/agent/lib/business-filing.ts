@@ -7,6 +7,7 @@ import {
 	type FilingRecord,
 	fileRecord,
 	followCompany,
+	nextFilingDayStart,
 	recordColumn,
 } from "@crm/db/business-filing";
 import { readBusinessFilingDailyLimit } from "@crm/db/settings";
@@ -300,12 +301,6 @@ export async function queueFilingForEvent(
 	return "queued";
 }
 
-function startOfNextDay(now: Date): Date {
-	const next = new Date(now);
-	next.setUTCHours(24, 0, 0, 0);
-	return next;
-}
-
 export type Preflight =
 	| { kind: "done"; outcome: string }
 	| { kind: "deferred"; until: Date; reason: string }
@@ -333,7 +328,7 @@ export async function preflightFiling(
 	if (used >= limit) {
 		return {
 			kind: "deferred",
-			until: startOfNextDay(now),
+			until: nextFilingDayStart(now),
 			reason: `Waiting for tomorrow: today's limit of ${limit} AI filings is used up.`,
 		};
 	}

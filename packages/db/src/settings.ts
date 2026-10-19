@@ -158,6 +158,7 @@ export const BUSINESS_FILING_LIMIT = {
 	default: 100,
 	min: 0,
 	max: 5000,
+	timeZone: "Europe/London",
 } as const;
 
 export async function readBusinessFilingDailyLimit(db: Db): Promise<number> {

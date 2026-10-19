@@ -304,7 +304,7 @@ describe("preflightFiling", () => {
 
 			expect(result).toEqual({
 				kind: "deferred",
-				until: new Date("2026-10-19T00:00:00Z"),
+				until: new Date("2026-10-18T23:00:00Z"),
 				reason:
 					"Waiting for tomorrow: today's limit of 0 AI filings is used up.",
 			});
