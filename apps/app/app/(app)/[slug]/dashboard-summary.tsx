@@ -35,7 +35,7 @@ import { DealStageIndicator } from "@/components/crm/deal-stage";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { LocalRelativeTime } from "@/components/local-date-time";
-import { activityLabel } from "@/lib/activity-presentation";
+import { activityAuthor, activityLabel } from "@/lib/activity-presentation";
 import { useBusinessFocus } from "@/lib/business-focus";
 import { dealStageColor } from "@/lib/deal-stage";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
@@ -315,7 +315,7 @@ export function DashboardSummary() {
 								<TableCell
 									className={`${CELL} hidden truncate text-muted-foreground md:table-cell`}
 								>
-									{entry.createdBy.name}
+									{activityAuthor(entry)}
 								</TableCell>
 								<TableCell
 									className={`${CELL} text-right text-muted-foreground`}

@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { LocalDateTime, LocalRelativeTime } from "@/components/local-date-time";
-import { activityLabel } from "@/lib/activity-presentation";
+import { activityAuthor, activityLabel } from "@/lib/activity-presentation";
 import { dealStageLabel } from "@/lib/deal-stage";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -76,7 +76,7 @@ export function TimelineEntry({
 		? entry.emailThread
 			? "via Gmail"
 			: "via Calendar"
-		: entry.createdBy.name;
+		: activityAuthor(entry);
 
 	const headline = change
 		? `${dealStageLabel(change.from)} → ${dealStageLabel(change.to)}`

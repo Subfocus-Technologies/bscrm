@@ -30,3 +30,14 @@ export function activityLabel(type: ActivityType): string {
 export function activityIcon(type: ActivityType): CarbonIcon {
 	return PRESENTATION[type].icon;
 }
+
+const AUTOMATED_AUTHOR = "Agent";
+
+export function activityAuthor(entry: {
+	meta: { automated?: unknown } | null;
+	createdBy: { name: string };
+}): string {
+	return entry.meta?.automated === true
+		? AUTOMATED_AUTHOR
+		: entry.createdBy.name;
+}
