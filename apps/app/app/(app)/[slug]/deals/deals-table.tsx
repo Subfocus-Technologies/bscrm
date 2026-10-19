@@ -12,6 +12,8 @@ import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { formatMoney } from "@crm/ui/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
+import { BusinessesCell } from "@/components/businesses/businesses-cell";
+import { useBusinessFacet } from "@/components/businesses/use-business-facet";
 import { CLOSING_OPTIONS } from "@/components/crm/closing-window";
 import { CompanyCell } from "@/components/crm/company-cell";
 import { useFieldColumns } from "@/components/crm/fields/field-columns";
@@ -24,6 +26,7 @@ import { ListSearch } from "@/components/data-table/list-search";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalDay, LocalRelativeTime } from "@/components/local-date-time";
 import { useBusinessFocus } from "@/lib/business-focus";
+import { scopeListInput } from "@/lib/business-list-input";
 import { DEAL_STAGE_OPTIONS } from "@/lib/deal-stage";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -127,6 +130,17 @@ const COLUMNS: DataTableColumn<DealRow>[] = [
 	},
 ];
 
+const BUSINESSES_COLUMN: DataTableColumn<DealRow> = {
+	id: "businesses",
+	header: "Business",
+	sortable: true,
+	width: "w-[14%]",
+	hideBelow: "lg",
+	cell: (row) => (
+		<BusinessesCell businesses={row.business ? [row.business] : []} />
+	),
+};
+
 const ARCHIVED_COLUMN: DataTableColumn<DealRow> = {
 	id: "archivedAt",
 	header: "Archived",
@@ -153,7 +167,7 @@ export function DealsTable() {
 
 	const business = useBusinessFocus();
 	const deals = useQuery({
-		...trpc.deals.list.queryOptions({ ...input, business }),
+		...trpc.deals.list.queryOptions(scopeListInput(input, business)),
 		placeholderData: (previous) => previous,
 	});
 	const users = useQuery(trpc.users.list.queryOptions());
@@ -183,6 +197,7 @@ export function DealsTable() {
 	};
 
 	const facetCounts = deals.data?.facetCounts;
+	const businessFacet = useBusinessFacet(facetCounts?.businesses);
 	const fieldFacets = useFieldFacets("DEAL", facetCounts);
 
 	const facets: DataTableFacet[] = [
@@ -195,6 +210,7 @@ export function DealsTable() {
 					: [],
 			),
 		},
+		...(business ? [] : [businessFacet]),
 		{
 			id: "stage",
 			label: "Stage",
@@ -222,11 +238,13 @@ export function DealsTable() {
 
 	const fieldColumns = useFieldColumns<DealRow>("DEAL");
 	const columns = useMemo(
-		() =>
-			input.archived
-				? [...COLUMNS, ARCHIVED_COLUMN, ...fieldColumns]
-				: [...COLUMNS, ...fieldColumns],
-		[fieldColumns, input.archived],
+		() => [
+			...COLUMNS,
+			...(business ? [] : [BUSINESSES_COLUMN]),
+			...(input.archived ? [ARCHIVED_COLUMN] : []),
+			...fieldColumns,
+		],
+		[business, fieldColumns, input.archived],
 	);
 
 	return (

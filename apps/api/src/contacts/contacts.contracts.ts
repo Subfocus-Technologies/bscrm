@@ -11,7 +11,9 @@ import { bulkIdsInput } from "../crm/bulk";
 import { recordFieldValues } from "../fields/fields.contracts";
 import {
 	activityFacetInput,
+	businessFacetInput,
 	businessScopeInput,
+	listedBusinessOutput,
 	listInput,
 } from "../trpc/list-input";
 
@@ -26,6 +28,7 @@ export const contactListInput = listInput.extend({
 	fields: z.record(z.string(), z.array(z.string())).default({}),
 	archived: z.boolean().default(false),
 	business: businessScopeInput,
+	businesses: businessFacetInput,
 });
 
 export type ContactListInput = z.infer<typeof contactListInput>;
@@ -148,6 +151,7 @@ export const contactRowOutput = z.object({
 	),
 	company: contactCompanyOutput.nullable(),
 	owner: contactOwnerOutput.nullable(),
+	businesses: z.array(listedBusinessOutput),
 	lastActivityAt: z.string().nullable(),
 	createdAt: z.string(),
 	archivedAt: z.string().nullable(),

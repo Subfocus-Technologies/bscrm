@@ -13,6 +13,8 @@ import { useSearchInput } from "@crm/ui/hooks/use-search-input";
 import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { BusinessesCell } from "@/components/businesses/businesses-cell";
+import { useBusinessFacet } from "@/components/businesses/use-business-facet";
 import { CompanyCell } from "@/components/crm/company-cell";
 import { contactName } from "@/components/crm/contact-name";
 import { useFieldColumns } from "@/components/crm/fields/field-columns";
@@ -26,6 +28,7 @@ import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { ACTIVITY_FACET_OPTIONS } from "@/lib/activity-recency";
 import { useBusinessFocus } from "@/lib/business-focus";
+import { scopeListInput } from "@/lib/business-list-input";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { ContactsBulkActions } from "./contacts-bulk-actions";
@@ -126,6 +129,14 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
 	},
 ];
 
+const BUSINESSES_COLUMN: DataTableColumn<ContactRow> = {
+	id: "businesses",
+	header: "Businesses",
+	width: "w-[14%]",
+	hideBelow: "lg",
+	cell: (row) => <BusinessesCell businesses={row.businesses} />,
+};
+
 const ARCHIVED_COLUMN: DataTableColumn<ContactRow> = {
 	id: "archivedAt",
 	header: "Archived",
@@ -153,7 +164,7 @@ export function ContactsTable() {
 
 	const business = useBusinessFocus();
 	const contacts = useQuery({
-		...trpc.contacts.list.queryOptions({ ...input, business }),
+		...trpc.contacts.list.queryOptions(scopeListInput(input, business)),
 		placeholderData: (previous) => previous,
 	});
 	const users = useQuery(trpc.users.list.queryOptions());
@@ -193,6 +204,7 @@ export function ContactsTable() {
 	};
 
 	const facetCounts = contacts.data?.facetCounts;
+	const businessFacet = useBusinessFacet(facetCounts?.businesses);
 	const fieldFacets = useFieldFacets("CONTACT", facetCounts);
 
 	const facets: DataTableFacet[] = [
@@ -207,6 +219,7 @@ export function ContactsTable() {
 				})),
 			].filter((option) => (facetCounts?.owner?.[option.value] ?? 0) > 0),
 		},
+		...(business ? [] : [businessFacet]),
 		{
 			id: "company",
 			label: "Company",
@@ -258,11 +271,13 @@ export function ContactsTable() {
 
 	const fieldColumns = useFieldColumns<ContactRow>("CONTACT");
 	const columns = useMemo(
-		() =>
-			input.archived
-				? [...COLUMNS, ARCHIVED_COLUMN, ...fieldColumns]
-				: [...COLUMNS, ...fieldColumns],
-		[fieldColumns, input.archived],
+		() => [
+			...COLUMNS,
+			...(business ? [] : [BUSINESSES_COLUMN]),
+			...(input.archived ? [ARCHIVED_COLUMN] : []),
+			...fieldColumns,
+		],
+		[business, fieldColumns, input.archived],
 	);
 
 	return (

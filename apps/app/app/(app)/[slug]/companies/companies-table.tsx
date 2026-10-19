@@ -15,6 +15,8 @@ import {
 import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { BusinessesCell } from "@/components/businesses/businesses-cell";
+import { useBusinessFacet } from "@/components/businesses/use-business-facet";
 import { EnrichmentIndicator } from "@/components/crm/enrichment-status";
 import { useFieldColumns } from "@/components/crm/fields/field-columns";
 import { useFieldFacets } from "@/components/crm/fields/field-facets";
@@ -27,6 +29,7 @@ import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { ACTIVITY_FACET_OPTIONS } from "@/lib/activity-recency";
 import { useBusinessFocus } from "@/lib/business-focus";
+import { scopeListInput } from "@/lib/business-list-input";
 import {
 	ENRICHMENT_FACET_OPTIONS,
 	ENRICHMENT_POLL_MS,
@@ -153,6 +156,14 @@ const COLUMNS: DataTableColumn<CompanyRow>[] = [
 	},
 ];
 
+const BUSINESSES_COLUMN: DataTableColumn<CompanyRow> = {
+	id: "businesses",
+	header: "Businesses",
+	width: "w-[14%]",
+	hideBelow: "lg",
+	cell: (row) => <BusinessesCell businesses={row.businesses} />,
+};
+
 const ARCHIVED_COLUMN: DataTableColumn<CompanyRow> = {
 	id: "archivedAt",
 	header: "Archived",
@@ -180,7 +191,7 @@ export function CompaniesTable() {
 
 	const business = useBusinessFocus();
 	const companies = useQuery({
-		...trpc.companies.list.queryOptions({ ...input, business }),
+		...trpc.companies.list.queryOptions(scopeListInput(input, business)),
 		placeholderData: (previous) => previous,
 		refetchInterval: (query) =>
 			query.state.data?.rows.some((row) =>
@@ -197,6 +208,7 @@ export function CompaniesTable() {
 	);
 
 	const facetCounts = companies.data?.facetCounts;
+	const businessFacet = useBusinessFacet(facetCounts?.businesses);
 	const fieldFacets = useFieldFacets("COMPANY", facetCounts);
 
 	const facets: DataTableFacet[] = [
@@ -211,6 +223,7 @@ export function CompaniesTable() {
 				})),
 			].filter((option) => (facetCounts?.owner?.[option.value] ?? 0) > 0),
 		},
+		...(business ? [] : [businessFacet]),
 		{
 			id: "industry",
 			label: "Industry",
@@ -237,11 +250,13 @@ export function CompaniesTable() {
 
 	const fieldColumns = useFieldColumns<CompanyRow>("COMPANY");
 	const columns = useMemo(
-		() =>
-			input.archived
-				? [...COLUMNS, ARCHIVED_COLUMN, ...fieldColumns]
-				: [...COLUMNS, ...fieldColumns],
-		[fieldColumns, input.archived],
+		() => [
+			...COLUMNS,
+			...(business ? [] : [BUSINESSES_COLUMN]),
+			...(input.archived ? [ARCHIVED_COLUMN] : []),
+			...fieldColumns,
+		],
+		[business, fieldColumns, input.archived],
 	);
 
 	return (
