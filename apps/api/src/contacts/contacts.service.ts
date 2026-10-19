@@ -17,7 +17,13 @@ import {
 import { AgentQueueService } from "../agent/agent-queue.service";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ARCHIVE } from "../archive/archive-config";
-import { contactBusinessScope } from "../businesses/business-scope";
+import {
+	contactBusinessCounts,
+	contactBusinessFilter,
+	contactBusinessScope,
+	LISTED_MEMBERSHIPS,
+	listedBusinesses,
+} from "../businesses/business-scope";
 import {
 	businessMembershipCreate,
 	requireBusiness,
@@ -129,6 +135,7 @@ export class ContactsService {
 					source: true,
 					company: { select: COMPANY_SELECT },
 					owner: { select: OWNER_SELECT },
+					businesses: LISTED_MEMBERSHIPS,
 					lastActivityAt: true,
 					createdAt: true,
 					archivedAt: true,
@@ -146,6 +153,7 @@ export class ContactsService {
 		return {
 			rows: rows.map((row) => ({
 				...row,
+				businesses: listedBusinesses(row.businesses),
 				lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
 				createdAt: row.createdAt.toISOString(),
 				archivedAt: row.archivedAt?.toISOString() ?? null,
@@ -826,6 +834,9 @@ export class ContactsService {
 		const owner = ownerFilter<Prisma.ContactWhereInput>(input.owner);
 		if (owner) and.push(owner);
 
+		const businesses = contactBusinessFilter(input.businesses);
+		if (businesses) and.push(businesses);
+
 		const company = this.companyFilter(input.company);
 		if (company) and.push(company);
 
@@ -858,6 +869,7 @@ export class ContactsService {
 
 		const [
 			owners,
+			businesses,
 			companies,
 			sources,
 			titles,
@@ -871,6 +883,7 @@ export class ContactsService {
 				where,
 				_count: { _all: true },
 			}),
+			contactBusinessCounts(this.db, where),
 			this.db.contact.groupBy({
 				by: ["companyId"],
 				where,
@@ -904,6 +917,7 @@ export class ContactsService {
 
 		return {
 			owner: countsByKey(owners, "ownerId", FACET_UNASSIGNED),
+			businesses,
 			company: countsByKey(companies, "companyId", NO_COMPANY),
 			source: countsByKey(sources, "source"),
 			title: countsByKey(titles, "title"),

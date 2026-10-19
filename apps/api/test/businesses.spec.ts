@@ -71,6 +71,7 @@ const contactList = {
 	activity: [],
 	fields: {},
 	archived: false,
+	businesses: [],
 };
 
 function named(name: string): string {

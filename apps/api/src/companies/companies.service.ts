@@ -18,7 +18,13 @@ import {
 import { AgentQueueService } from "../agent/agent-queue.service";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ARCHIVE } from "../archive/archive-config";
-import { companyBusinessScope } from "../businesses/business-scope";
+import {
+	companyBusinessCounts,
+	companyBusinessFilter,
+	companyBusinessScope,
+	LISTED_MEMBERSHIPS,
+	listedBusinesses,
+} from "../businesses/business-scope";
 import {
 	businessMembershipCreate,
 	requireBusiness,
@@ -112,6 +118,7 @@ export class CompaniesService {
 					enrichmentStatus: true,
 					source: true,
 					owner: { select: OWNER_SELECT },
+					businesses: LISTED_MEMBERSHIPS,
 					_count: {
 						select: {
 							contacts: true,
@@ -148,6 +155,7 @@ export class CompaniesService {
 				queued: queued.has(row.id),
 				source: row.source,
 				owner: row.owner,
+				businesses: listedBusinesses(row.businesses),
 				contactCount: row._count.contacts,
 				openDealCount: row._count.deals,
 				lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
@@ -661,6 +669,9 @@ export class CompaniesService {
 		const owner = ownerFilter<Prisma.CompanyWhereInput>(input.owner);
 		if (owner) and.push(owner);
 
+		const businesses = companyBusinessFilter(input.businesses);
+		if (businesses) and.push(businesses);
+
 		if (input.industry.length > 0)
 			and.push({ industry: { in: input.industry } });
 		if (input.enrichment.length > 0) {
@@ -690,36 +701,45 @@ export class CompaniesService {
 			],
 		};
 
-		const [owners, industries, enrichment, sources, activity, fieldFacets] =
-			await Promise.all([
-				this.db.company.groupBy({
-					by: ["ownerId"],
-					where,
-					_count: { _all: true },
-				}),
-				this.db.company.groupBy({
-					by: ["industry"],
-					where,
-					_count: { _all: true },
-				}),
-				this.db.company.groupBy({
-					by: ["enrichmentStatus"],
-					where,
-					_count: { _all: true },
-				}),
-				this.db.company.groupBy({
-					by: ["source"],
-					where,
-					_count: { _all: true },
-				}),
-				activityFacetCounts((activityWhere) =>
-					this.db.company.count({ where: { AND: [where, activityWhere] } }),
-				),
-				this.fields.filterFacetCounts("COMPANY", where, filterableFields),
-			]);
+		const [
+			owners,
+			businesses,
+			industries,
+			enrichment,
+			sources,
+			activity,
+			fieldFacets,
+		] = await Promise.all([
+			this.db.company.groupBy({
+				by: ["ownerId"],
+				where,
+				_count: { _all: true },
+			}),
+			companyBusinessCounts(this.db, where),
+			this.db.company.groupBy({
+				by: ["industry"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.company.groupBy({
+				by: ["enrichmentStatus"],
+				where,
+				_count: { _all: true },
+			}),
+			this.db.company.groupBy({
+				by: ["source"],
+				where,
+				_count: { _all: true },
+			}),
+			activityFacetCounts((activityWhere) =>
+				this.db.company.count({ where: { AND: [where, activityWhere] } }),
+			),
+			this.fields.filterFacetCounts("COMPANY", where, filterableFields),
+		]);
 
 		return {
 			owner: countsByKey(owners, "ownerId", FACET_UNASSIGNED),
+			businesses,
 			industry: countsByKey(industries, "industry"),
 			enrichment: countsByKey(enrichment, "enrichmentStatus"),
 			source: countsByKey(sources, "source"),

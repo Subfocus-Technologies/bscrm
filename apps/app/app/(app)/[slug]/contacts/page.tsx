@@ -11,6 +11,7 @@ import {
 	PageShellTitle,
 } from "@/components/page-shell";
 import { loadBusinessFocus } from "@/lib/business-focus-server";
+import { scopeListInput } from "@/lib/business-list-input";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -59,10 +60,9 @@ async function Contacts({
 	const queryClient = getServerQueryClient();
 	await Promise.all([
 		queryClient.prefetchQuery(
-			trpc.contacts.list.queryOptions({
-				...contactsSearchParams.toInput(values),
-				business,
-			}),
+			trpc.contacts.list.queryOptions(
+				scopeListInput(contactsSearchParams.toInput(values), business),
+			),
 		),
 		queryClient.prefetchQuery(trpc.users.list.queryOptions()),
 		queryClient.prefetchQuery(trpc.companies.options.queryOptions({ q: "" })),

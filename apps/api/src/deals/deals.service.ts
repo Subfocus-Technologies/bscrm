@@ -21,7 +21,11 @@ import {
 } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ARCHIVE } from "../archive/archive-config";
-import { dealBusinessScope } from "../businesses/business-scope";
+import {
+	dealBusinessFilter,
+	dealBusinessScope,
+	LISTED_BUSINESS_SELECT,
+} from "../businesses/business-scope";
 import { requireBusiness } from "../businesses/require-business";
 import {
 	ActivityStampService,
@@ -42,6 +46,7 @@ import {
 	countsByKey,
 	FACET_UNASSIGNED,
 	type ListResult,
+	NO_BUSINESS,
 	type OrderByColumns,
 	ownerFilter,
 	paginate,
@@ -97,6 +102,7 @@ const SORTABLE: OrderByColumns<Prisma.DealOrderByWithRelationInput[]> = {
 	expectedCloseDate: (dir) => [{ expectedCloseDate: dir }],
 	createdAt: (dir) => [{ createdAt: dir }],
 	owner: (dir) => [{ owner: { name: dir } }, { name: "asc" }],
+	businesses: (dir) => [{ business: { name: dir } }, { name: "asc" }],
 	lastActivity: (dir) => [{ lastActivityAt: { sort: dir, nulls: "last" } }],
 	archivedAt: (dir) => [{ archivedAt: { sort: dir, nulls: "last" } }],
 };
@@ -139,6 +145,7 @@ export class DealsService {
 						closedAt: true,
 						company: { select: COMPANY_SELECT },
 						owner: { select: OWNER_SELECT },
+						business: { select: LISTED_BUSINESS_SELECT },
 						lastActivityAt: true,
 						createdAt: true,
 						archivedAt: true,
@@ -766,6 +773,9 @@ export class DealsService {
 		const owner = ownerFilter<Prisma.DealWhereInput>(input.owner);
 		if (owner) and.push(owner);
 
+		const businesses = dealBusinessFilter(input.businesses);
+		if (businesses) and.push(businesses);
+
 		if (input.status === "open") {
 			and.push({ stage: { in: [...OPEN_DEAL_STAGES] } });
 		} else if (input.status === "closed") {
@@ -799,14 +809,26 @@ export class DealsService {
 			],
 		};
 
-		const [owners, stages, fieldFacets, ...closingCounts] = await Promise.all([
-			this.db.deal.groupBy({ by: ["ownerId"], where, _count: { _all: true } }),
-			this.db.deal.groupBy({ by: ["stage"], where, _count: { _all: true } }),
-			this.fields.filterFacetCounts("DEAL", where, filterableFields),
-			...CLOSING_WINDOWS.map((window) =>
-				this.db.deal.count({ where: { AND: [where, closingFilter(window)] } }),
-			),
-		]);
+		const [owners, businesses, stages, fieldFacets, ...closingCounts] =
+			await Promise.all([
+				this.db.deal.groupBy({
+					by: ["ownerId"],
+					where,
+					_count: { _all: true },
+				}),
+				this.db.deal.groupBy({
+					by: ["businessId"],
+					where,
+					_count: { _all: true },
+				}),
+				this.db.deal.groupBy({ by: ["stage"], where, _count: { _all: true } }),
+				this.fields.filterFacetCounts("DEAL", where, filterableFields),
+				...CLOSING_WINDOWS.map((window) =>
+					this.db.deal.count({
+						where: { AND: [where, closingFilter(window)] },
+					}),
+				),
+			]);
 
 		const stageCounts = countsByKey(stages, "stage");
 		const openCount = OPEN_DEAL_STAGES.reduce(
@@ -821,6 +843,7 @@ export class DealsService {
 		return {
 			status: { open: openCount, closed: closedCount },
 			owner: countsByKey(owners, "ownerId", FACET_UNASSIGNED),
+			businesses: countsByKey(businesses, "businessId", NO_BUSINESS),
 			stage: stageCounts,
 			closing: Object.fromEntries(
 				CLOSING_WINDOWS.map((window, index) => [

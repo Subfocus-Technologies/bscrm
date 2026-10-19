@@ -12,6 +12,18 @@ export type ListInput = z.infer<typeof listInput>;
 
 export const businessScopeInput = z.string().nullable().default(null);
 
+export const NO_BUSINESS = "none";
+
+export const businessFacetInput = z.array(z.string()).default([]);
+
+export const listedBusinessOutput = z.object({
+	id: z.string(),
+	name: z.string(),
+	tone: z.number().int(),
+});
+
+export type ListedBusiness = z.infer<typeof listedBusinessOutput>;
+
 export type FacetCount = Record<string, number>;
 
 type FacetCounts = Record<string, FacetCount>;
