@@ -4,7 +4,7 @@ import { z } from "zod";
 import { bulkIdsInput } from "../crm/bulk";
 import { currencyCode } from "../currency/currency.contracts";
 import { recordFieldValues } from "../fields/fields.contracts";
-import { listInput } from "../trpc/list-input";
+import { businessScopeInput, listInput } from "../trpc/list-input";
 
 export const MAX_AMOUNT_CENTS = 99_999_999_999_999;
 
@@ -33,6 +33,7 @@ export const dealListInput = listInput.extend({
 	closing: z.array(z.string()).default([]),
 	fields: z.record(z.string(), z.array(z.string())).default({}),
 	archived: z.boolean().default(false),
+	business: businessScopeInput,
 });
 
 export type DealListInput = z.infer<typeof dealListInput>;
@@ -49,6 +50,7 @@ export const dealCreateInput = z.object({
 	amountCents,
 	currency: currencyCode.optional(),
 	expectedCloseDate: z.string().nullable().optional(),
+	businessId: z.string().nullable().optional(),
 });
 
 export type DealCreateInput = z.infer<typeof dealCreateInput>;

@@ -1,11 +1,13 @@
 import { ActivityType, DealStage } from "@crm/db";
 import { activityMeta } from "@crm/validation/activity-meta";
 import { z } from "zod";
+import { businessScopeInput } from "../trpc/list-input";
 
 const DASHBOARD_SCOPES = ["me", "everyone"] as const;
 
 export const dashboardSummaryInput = z.object({
 	scope: z.enum(DASHBOARD_SCOPES).default("me"),
+	business: businessScopeInput,
 });
 
 export type DashboardSummaryInput = z.infer<typeof dashboardSummaryInput>;
@@ -86,8 +88,24 @@ const recentActivityOutput = z.object({
 	meta: activityMeta,
 });
 
+const businessPipelineOutput = z.object({
+	businessId: z.string().nullable(),
+	name: z.string().nullable(),
+	count: z.number(),
+	valueCents: z.number(),
+	wonCents: z.number(),
+	targetCents: z.number().nullable(),
+});
+
+const targetProgressOutput = z.object({
+	targetCents: z.number(),
+	wonCents: z.number(),
+});
+
 export const dashboardSummaryOutput = z.object({
 	scope: z.enum(DASHBOARD_SCOPES),
+	byBusiness: z.array(businessPipelineOutput),
+	target: targetProgressOutput.nullable(),
 	reportingCurrency: z.string(),
 	unconverted: unconvertedOutput,
 	pipeline: z.object({

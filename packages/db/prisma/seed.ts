@@ -991,6 +991,60 @@ async function seedActivities(
 	return rows.length;
 }
 
+const SEED_BUSINESSES = ["BS Investor", "BS Agent", "WDTO"] as const;
+
+async function seedBusinesses(
+	companies: { id: string }[],
+	contacts: SeededContact[],
+	deals: SeededDeal[],
+): Promise<number> {
+	const businesses = await Promise.all(
+		SEED_BUSINESSES.map((name, tone) =>
+			db.business.upsert({
+				where: { name },
+				create: { name, tone },
+				update: {},
+				select: { id: true },
+			}),
+		),
+	);
+
+	const homeOf = new Map<string, string>();
+	const companyRows = companies.flatMap((company, index) => {
+		const home = businesses[index % businesses.length];
+		if (!home) return [];
+		homeOf.set(company.id, home.id);
+		const second = businesses[(index + 1) % businesses.length];
+		const extra = index % 5 === 0 && second ? [second.id] : [];
+		return [home.id, ...extra].map((businessId) => ({
+			companyId: company.id,
+			businessId,
+		}));
+	});
+
+	await db.companyBusiness.createMany({
+		data: companyRows,
+		skipDuplicates: true,
+	});
+	await db.contactBusiness.createMany({
+		data: contacts.flatMap((contact) => {
+			const businessId = homeOf.get(contact.companyId);
+			return businessId ? [{ contactId: contact.id, businessId }] : [];
+		}),
+		skipDuplicates: true,
+	});
+	await Promise.all(
+		deals.map((deal) =>
+			db.deal.update({
+				where: { id: deal.id },
+				data: { businessId: homeOf.get(deal.companyId) ?? null },
+			}),
+		),
+	);
+
+	return businesses.length;
+}
+
 async function main() {
 	const rates = await seedRates();
 	const ownerIds = await seedOwners();
@@ -1000,11 +1054,12 @@ async function main() {
 	const activities = await seedActivities(companies, contacts, deals, ownerIds);
 	const companyFields = await seedCompanyFields();
 	await seedCompanyFieldValues(companyFields, companies, ownerIds);
+	const businesses = await seedBusinesses(companies, contacts, deals);
 
 	console.log(
 		`Seeded ${companies.length} companies, ${contacts.length} contacts, ` +
 			`${deals.length} deals, ${activities} activities, ${rates} exchange rates, ` +
-			"7 company fields.",
+			`7 company fields, ${businesses} businesses.`,
 	);
 }
 

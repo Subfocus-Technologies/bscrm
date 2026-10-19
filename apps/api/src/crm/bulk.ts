@@ -11,6 +11,14 @@ export const bulkIdsInput = z.object({
 		.max(MAX_BULK_IDS, "Too many records at once — select a page at a time."),
 });
 
+export const bulkResultOutput = z.object({
+	requested: z.number(),
+	succeeded: z.number(),
+	skipped: z.number(),
+	failed: z.number(),
+	message: z.string().nullable(),
+});
+
 export type BulkResult = {
 	requested: number;
 	succeeded: number;

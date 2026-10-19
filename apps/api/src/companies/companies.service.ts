@@ -6,6 +6,7 @@ import {
 	type RecordSource,
 } from "@crm/db";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
+import { normalizeDomain } from "@crm/db/domain";
 import type { FieldDefinitionWithOptions } from "@crm/db/fields";
 import {
 	BadRequestException,
@@ -17,6 +18,11 @@ import {
 import { AgentQueueService } from "../agent/agent-queue.service";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ARCHIVE } from "../archive/archive-config";
+import { companyBusinessScope } from "../businesses/business-scope";
+import {
+	businessMembershipCreate,
+	requireBusiness,
+} from "../businesses/require-business";
 import {
 	ActivityStampService,
 	type StampTargets,
@@ -45,7 +51,6 @@ import type {
 	CompanyRow,
 	CompanyUpdateInput,
 } from "./companies.contracts";
-import { normalizeDomain } from "./domain";
 import { FaviconService } from "./favicon.service";
 
 const OWNER_SELECT = {
@@ -271,7 +276,9 @@ export class CompaniesService {
 		});
 	}
 
-	async create(input: CompanyCreateInput) {
+	async create(input: CompanyCreateInput, actingUserId: string | null = null) {
+		await requireBusiness(this.db, input.businessId);
+
 		const domain = normalizeDomain(input.domain);
 
 		if (domain) {
@@ -293,6 +300,7 @@ export class CompaniesService {
 					domain,
 					website: domain ? `https://${domain}` : null,
 					ownerId: input.ownerId ?? null,
+					businesses: businessMembershipCreate(input.businessId, actingUserId),
 				},
 				select: { id: true, name: true, domain: true, createdAt: true },
 			});
@@ -646,6 +654,7 @@ export class CompaniesService {
 		const and: Prisma.CompanyWhereInput[] = [
 			this.searchFilter(input.q),
 			archivedFilter(input.archived),
+			companyBusinessScope(input.business),
 			...this.fields.fieldFilters(filterableFields, input.fields),
 		];
 
@@ -674,7 +683,11 @@ export class CompaniesService {
 		filterableFields: FieldDefinitionWithOptions[],
 	) {
 		const where = {
-			AND: [this.searchFilter(input.q), archivedFilter(input.archived)],
+			AND: [
+				this.searchFilter(input.q),
+				archivedFilter(input.archived),
+				companyBusinessScope(input.business),
+			],
 		};
 
 		const [owners, industries, enrichment, sources, activity, fieldFacets] =

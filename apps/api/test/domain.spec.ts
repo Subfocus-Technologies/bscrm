@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import {
-	domainFromEmail,
-	isMachineDomain,
-	normalizeDomain,
-} from "../src/companies/domain";
+import { normalizeDomain } from "@crm/db/domain";
+import { domainFromEmail, isMachineDomain } from "../src/companies/domain";
 
 describe("normalizeDomain", () => {
 	it("reduces anything a human might type to the bare host", () => {

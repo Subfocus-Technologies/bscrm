@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AreaTrend, DonutStat } from "@/components/dashboard-charts";
+import { useSetBusinessFocus } from "@/lib/business-focus";
 import { dealStageColor, dealStageLabel } from "@/lib/deal-stage";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
@@ -41,6 +42,15 @@ function changeDelta(
 		direction: change > 0 ? "up" : change < 0 ? "down" : "neutral",
 		label,
 	};
+}
+
+function targetShare(target: {
+	targetCents: number;
+	wonCents: number;
+}): string {
+	return target.targetCents === 0
+		? "100%"
+		: formatPercent(target.wonCents / target.targetCents);
 }
 
 export function SalesDashboard({ summary }: { summary: Summary }) {
@@ -88,7 +98,11 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 						wonPrevMonth.valueCents,
 						"vs. last month",
 					)}
-					description={`${formatCount(wonThisMonth.count, "deal")} · ${money(wonPrevMonth.valueCents)} last month`}
+					description={
+						summary.target
+							? `${formatCount(wonThisMonth.count, "deal")} · team at ${targetShare(summary.target)} of ${money(summary.target.targetCents)} target`
+							: `${formatCount(wonThisMonth.count, "deal")} · ${money(wonPrevMonth.valueCents)} last month`
+					}
 				/>
 				<StatCard
 					label="Open pipeline"
@@ -208,7 +222,78 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 					)}
 				</ChartPanel>
 			</DashboardRow>
+
+			{summary.byBusiness.length > 0 ? (
+				<BusinessBreakdown rows={summary.byBusiness} money={money} />
+			) : null}
 		</div>
+	);
+}
+
+function BusinessBreakdown({
+	rows,
+	money,
+}: {
+	rows: Summary["byBusiness"];
+	money: (cents: number) => string;
+}) {
+	const setFocus = useSetBusinessFocus();
+
+	return (
+		<ChartPanel
+			title="Open pipeline by business"
+			description="Open pipeline and this month's wins against each business's target. Select one to see only its records."
+		>
+			<ul className="flex flex-col px-5 pt-2 pb-1 md:px-6">
+				{rows.map((row) => (
+					<li
+						key={row.businessId ?? "none"}
+						className="border-t first:border-t-0"
+					>
+						{row.businessId ? (
+							<button
+								type="button"
+								onClick={() => setFocus.mutate({ businessId: row.businessId })}
+								className="flex w-full items-center gap-2.5 py-2 text-left text-xs hover:underline"
+							>
+								<BusinessLine row={row} money={money} />
+							</button>
+						) : (
+							<div className="flex items-center gap-2.5 py-2 text-muted-foreground text-xs">
+								<BusinessLine row={row} money={money} />
+							</div>
+						)}
+					</li>
+				))}
+			</ul>
+		</ChartPanel>
+	);
+}
+
+function BusinessLine({
+	row,
+	money,
+}: {
+	row: Summary["byBusiness"][number];
+	money: (cents: number) => string;
+}) {
+	return (
+		<>
+			<span className="min-w-0 flex-1 truncate">
+				{row.name ?? "No business"}
+			</span>
+			<span className="shrink-0 text-muted-foreground tabular-nums">
+				{formatCount(row.count, "deal")}
+			</span>
+			<span className="w-14 shrink-0 text-right font-medium tabular-nums">
+				{money(row.valueCents)}
+			</span>
+			<span className="hidden w-36 shrink-0 text-right text-muted-foreground tabular-nums sm:inline">
+				{row.targetCents === null
+					? "No target"
+					: `${money(row.wonCents)} of ${money(row.targetCents)} won`}
+			</span>
+		</>
 	);
 }
 

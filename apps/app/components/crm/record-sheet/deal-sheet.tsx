@@ -23,6 +23,7 @@ import {
 import { formatMoney } from "@crm/ui/lib/format";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { RecordBusinessesField } from "@/components/businesses/record-businesses-field";
 import { AgentPanel } from "@/components/crm/agent-panel";
 import { InlineCompanyField } from "@/components/crm/company-picker";
 import { contactName } from "@/components/crm/contact-name";
@@ -348,6 +349,7 @@ function DealOverview({ deal }: { deal: Deal }) {
 						}))}
 						onSave={(ownerId) => save({ ownerId })}
 					/>
+					<RecordBusinessesField kind="deal" recordId={deal.id} />
 					<RecordFields
 						fields={deal.fields}
 						saving={isSavingField}

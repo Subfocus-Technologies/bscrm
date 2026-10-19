@@ -16,8 +16,9 @@ const publicProcedure = t.procedure;
 import { timelineInput, timelineOutput, timelineCountsInput, timelineCountsOutput, myTasksInput, myTasksOutput, activityCreateInput, activityCreateOutput, completeInput, completeOutput } from "../activities/activities.contracts";
 import { agentListOutput, agentReviseInput, agentReviseOutput, agentIdInput, agentFilesOutput, agentSaveFileInput, agentSaveFileOutput, agentByIdOutput, agentHistoryInput, agentHistoryOutput, agentActivityOutput, agentUpdateInput, agentUpdateOutput, agentDeployInput, agentDeployOutput, agentPauseOutput, agentResumeOutput, agentArchiveOutput, agentRestoreOutput, agentRemoveOutput, agentRunNowInput, agentRunNowOutput, agentRetryRunInput, agentRetryRunOutput, agentCancelRunInput, agentCancelRunOutput } from "../agent/agents.contracts";
 import { apiKeyListInput, apiKeyListOutput, createApiKeyInput, createApiKeyOutput, revokeApiKeyInput, revokeApiKeyOutput } from "../api-keys/api-keys.contracts";
+import { businessListOutput, businessFocusOutput, businessSetFocusInput, businessCreateInput, businessOutput, businessUpdateInput, businessIdInput, businessDeleteOutput, businessReorderInput, businessRecordInput, recordBusinessListOutput, businessMembershipInput, businessSuggestionListInput, businessSuggestionListOutput, businessSuggestionDecideInput, businessSuggestionDecideOutput, unfiledOutput, sortUnfiledOutput, businessRuleListOutput, businessRuleAddInput, businessRuleOutput, businessRuleIdInput, businessRuleDeleteOutput, filingLimitOutput, filingLimitInput } from "../businesses/businesses.contracts";
+import { bulkResultOutput, contactListInput, contactListOutput, contactIdInput, contactByIdOutput, contactCreateInput, contactBasicOutput, contactUpdateArgs, contactNameOutput, contactEnrichOutput, contactBulkOwnerInput, contactBulkCompanyInput, contactBulkInput, factDecisionInput, decideFactOutput } from "../contacts/contacts.contracts";
 import { companyListInput, companyListOutput, companyIdInput, companyDetailOutput, companyOptionsInput, companyOptionOutput, companyCreateInput, companySummaryOutput, companyUpdateArgs, companyArchiveResultOutput, companyBulkOwnerInput, companyBulkResultOutput, companyBulkInput, companyEnrichOutput, companyResearchOutput, setPrimaryContactInput, companySetPrimaryContactOutput } from "../companies/companies.contracts";
-import { contactListInput, contactListOutput, contactIdInput, contactByIdOutput, contactCreateInput, contactBasicOutput, contactUpdateArgs, contactNameOutput, contactEnrichOutput, contactBulkOwnerInput, bulkResultOutput, contactBulkCompanyInput, contactBulkInput, factDecisionInput, decideFactOutput } from "../contacts/contacts.contracts";
 import { conversationListInput, conversationListOutput, builderListOutput, builderResourceSearchInput, builderResourcesOutput, conversationIdInput, builderConversationDetailOutput, conversationEventsInput, conversationEventsOutput, conversationSaveInput, conversationIdOutput, builderConversationCreateInput, builderConversationSubmitInput, builderQuestionResponseInput, builderResponseRatingInput, builderResponseRatingOutput, conversationShareStatusOutput, conversationShareTokenOutput, sharedConversationInput, sharedConversationOutput } from "../conversations/conversations.contracts";
 import { currencySettingsOutput, setReportingCurrencyInput, setManualRateInput, removeManualRateInput } from "../currency/currency.contracts";
 import { dashboardSummaryInput, dashboardSummaryOutput } from "../dashboard/dashboard.contracts";
@@ -138,6 +139,78 @@ const appRouter = t.router({
     revoke: publicProcedure
       .input(revokeApiKeyInput)
       .output(revokeApiKeyOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  businesses: t.router({
+    list: publicProcedure
+      .output(businessListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    focus: publicProcedure
+      .output(businessFocusOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setFocus: publicProcedure
+      .input(businessSetFocusInput)
+      .output(businessFocusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    create: publicProcedure
+      .input(businessCreateInput)
+      .output(businessOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    update: publicProcedure
+      .input(businessUpdateInput)
+      .output(businessOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    delete: publicProcedure
+      .input(businessIdInput)
+      .output(businessDeleteOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    reorder: publicProcedure
+      .input(businessReorderInput)
+      .output(businessListOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    forRecord: publicProcedure
+      .input(businessRecordInput)
+      .output(recordBusinessListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    addRecords: publicProcedure
+      .input(businessMembershipInput)
+      .output(bulkResultOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeRecords: publicProcedure
+      .input(businessMembershipInput)
+      .output(bulkResultOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    suggestions: publicProcedure
+      .input(businessSuggestionListInput)
+      .output(businessSuggestionListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    decideSuggestion: publicProcedure
+      .input(businessSuggestionDecideInput)
+      .output(businessSuggestionDecideOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    unfiled: publicProcedure
+      .output(unfiledOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    sortUnfiled: publicProcedure
+      .output(sortUnfiledOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    listRules: publicProcedure
+      .output(businessRuleListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    addRule: publicProcedure
+      .input(businessRuleAddInput)
+      .output(businessRuleOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeRule: publicProcedure
+      .input(businessRuleIdInput)
+      .output(businessRuleDeleteOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    filingLimit: publicProcedure
+      .output(filingLimitOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setFilingLimit: publicProcedure
+      .input(filingLimitInput)
+      .output(filingLimitOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   companies: t.router({

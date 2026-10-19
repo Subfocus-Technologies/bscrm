@@ -12,6 +12,7 @@ import { formatCount } from "@crm/ui/lib/format";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { BulkBusinessMenu } from "@/components/businesses/business-bulk-menu";
 import {
 	BulkActionsMenu,
 	BulkDeleteDialog,
@@ -144,6 +145,7 @@ export function CompaniesBulkActions({
 				unassignedLabel="Nobody"
 				onSelect={(ownerId) => assignOwner.mutate({ ids, ownerId })}
 			/>
+			<BulkBusinessMenu kind="company" ids={ids} onDone={onDone} />
 			<DropdownMenuGroup>
 				<DropdownMenuItem onSelect={() => enrich.mutate({ ids })}>
 					<Renew />

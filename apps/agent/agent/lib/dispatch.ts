@@ -1,7 +1,9 @@
 import { EnrichmentStatus } from "@crm/db";
+import { crmEventTask } from "@crm/validation/agent-events";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { APP_AUTH, type AppAuth } from "./app-auth";
 import { brandOutcome, runBrand } from "./brand";
+import { preflightFiling, queueFilingForEvent } from "./business-filing";
 import { queueEventAgentRuns } from "./custom-agent-dispatch";
 import { settledWithin } from "./deadline";
 import { DISPATCH } from "./dispatch-config";
@@ -15,6 +17,7 @@ import {
 	claimDue,
 	completeTask,
 	DIRECT_KINDS,
+	deferTask,
 	type LeasedTask,
 	noteSession,
 } from "./tasks";
@@ -118,6 +121,8 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 	}
 
 	if (task.kind === "agent-event") {
+		const event = crmEventTask.safeParse(task.payload);
+		if (event.success) await queueFilingForEvent(event.data);
 		const queued = await queueEventAgentRuns(task);
 		await completeTask(
 			task.id,
@@ -165,6 +170,18 @@ async function beginResearch(
 	task: LeasedTask,
 	start: (task: LeasedTask) => Promise<{ id: string }>,
 ): Promise<void> {
+	if (task.kind === "business-filing") {
+		const preflight = await preflightFiling(task);
+		if (preflight.kind === "done") {
+			await completeTask(task.id, preflight.outcome);
+			return;
+		}
+		if (preflight.kind === "deferred") {
+			await deferTask(task.id, preflight.until, preflight.reason);
+			return;
+		}
+	}
+
 	try {
 		await markRunning(task);
 	} catch (error) {
@@ -414,6 +431,8 @@ function work(
 			return "This company's brand, industry, location and links are filled in separately and may already be there. Read the account, fill anything still missing, and write a brief if there is something worth saying.";
 		case "workspace-profile":
 			return "Write the profile of the company you work for, so that every other session knows who we are. Read our own site and keep it short.";
+		case "business-filing":
+			return "Decide which of our businesses this record belongs to. Read its history first, then call file_into_business once per business it belongs to, citing the emails or meetings that show it. If nothing points anywhere, file nothing and say so.";
 		case "field-backfill": {
 			const parsed = fieldBackfillPayload.safeParse(payload);
 			const keys = parsed.success ? parsed.data.keys.join(", ") : reason;

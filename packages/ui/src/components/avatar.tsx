@@ -4,19 +4,36 @@ import { cn } from "@crm/ui/lib/utils";
 import { Avatar as AvatarPrimitive } from "radix-ui";
 import type * as React from "react";
 
+const AVATAR_TONES = [
+	"chart-1",
+	"chart-2",
+	"chart-3",
+	"chart-4",
+	"chart-5",
+] as const;
+
+type AvatarTone = "neutral" | (typeof AVATAR_TONES)[number];
+
 function Avatar({
 	className,
 	size = "default",
+	tone,
+	selected = false,
 	...props
 }: React.ComponentProps<typeof AvatarPrimitive.Root> & {
 	size?: "default" | "xs" | "sm" | "lg";
+	tone?: AvatarTone;
+	selected?: boolean;
 }) {
 	return (
 		<AvatarPrimitive.Root
 			data-slot="avatar"
 			data-size={size}
+			data-tone={tone}
+			data-selected={selected}
 			className={cn(
 				"group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 data-[size=xs]:size-5 dark:after:mix-blend-lighten",
+				"data-[tone]:ring-2 data-[tone]:after:hidden data-[tone=neutral]:ring-muted-foreground/40 data-[tone=chart-1]:ring-chart-1 data-[tone=chart-2]:ring-chart-2 data-[tone=chart-3]:ring-chart-3 data-[tone=chart-4]:ring-chart-4 data-[tone=chart-5]:ring-chart-5 data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-background",
 				className,
 			)}
 			{...props}
@@ -50,7 +67,7 @@ function AvatarFallback({
 		<AvatarPrimitive.Fallback
 			data-slot="avatar-fallback"
 			className={cn(
-				"flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs group-data-[size=xs]/avatar:text-[10px]",
+				"flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs group-data-[size=xs]/avatar:text-[10px] group-data-[selected=true]/avatar:font-semibold group-data-[selected=true]/avatar:text-foreground",
 				className,
 			)}
 			{...props}
@@ -104,6 +121,8 @@ function AvatarGroupCount({
 }
 
 export {
+	AVATAR_TONES,
+	type AvatarTone,
 	Avatar,
 	AvatarBadge,
 	AvatarFallback,

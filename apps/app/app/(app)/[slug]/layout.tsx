@@ -23,7 +23,7 @@ export default function AppLayout({
 
 				<div className="flex min-h-0 flex-1">
 					<Suspense fallback={<AppIconRailFallback />}>
-						<AppIconRail />
+						<WorkspaceRail />
 					</Suspense>
 					{children}
 				</div>
@@ -55,10 +55,14 @@ async function WorkspaceHeader({
 	params,
 }: Pick<LayoutProps<"/[slug]">, "params">) {
 	await connection();
+	const queryClient = getServerQueryClient();
+	const trpc = getServerTrpc();
 	const [{ user }, { slug }, workspace] = await Promise.all([
 		requireMailboxAccess(),
 		params,
 		loadWorkspace(),
+		queryClient.prefetchQuery(trpc.businesses.list.queryOptions()),
+		queryClient.prefetchQuery(trpc.businesses.focus.queryOptions()),
 	]);
 
 	if (workspace && workspace.slug !== slug) notFound();
@@ -72,6 +76,22 @@ async function WorkspaceHeader({
 					image: user.image ?? null,
 				}}
 			/>
+		</HydrateClient>
+	);
+}
+
+async function WorkspaceRail() {
+	await connection();
+	const trpc = getServerTrpc();
+	const queryClient = getServerQueryClient();
+	await Promise.all([
+		queryClient.prefetchQuery(trpc.businesses.list.queryOptions()),
+		queryClient.prefetchQuery(trpc.businesses.focus.queryOptions()),
+	]);
+
+	return (
+		<HydrateClient>
+			<AppIconRail />
 		</HydrateClient>
 	);
 }

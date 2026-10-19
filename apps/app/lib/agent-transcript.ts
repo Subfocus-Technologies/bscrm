@@ -61,6 +61,8 @@ const VERBS: ToolVerbs = {
 	read_company_history: "Read everything we have on the company",
 	read_deal_history: "Read the deal and where it has been",
 	search_crm: "Looked the record up in the CRM",
+	list_businesses: "Read our businesses and their playbooks",
+	file_into_business: "Filed the record into a business",
 	resolve_linkedin_profile: "Searched for their LinkedIn profile",
 	get_linkedin_profile: "Read a LinkedIn profile",
 	get_contact_work_history: "Read their work history",

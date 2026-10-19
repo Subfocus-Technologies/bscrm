@@ -32,6 +32,11 @@ export const DISPATCH = {
 		leaseMs: 10 * MINUTE_MS,
 	},
 
+	businessFiling: {
+		delayMs: 5 * MINUTE_MS,
+		budget: 1,
+	},
+
 	reconcile: {
 		scan: 200,
 		retire: 100,

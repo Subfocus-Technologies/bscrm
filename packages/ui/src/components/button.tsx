@@ -23,6 +23,8 @@ const buttonVariants = cva(
 				contrast:
 					"bg-foreground text-background shadow-2xs hover:bg-foreground/90 active:bg-foreground/80 active:shadow-none",
 				link: "text-primary underline-offset-4 hover:underline",
+				avatar:
+					"rounded-full text-muted-foreground hover:text-foreground aria-pressed:text-foreground",
 			},
 			size: {
 				default:

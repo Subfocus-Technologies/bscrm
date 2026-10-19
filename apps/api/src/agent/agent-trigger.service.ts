@@ -317,6 +317,45 @@ export class AgentTriggerService {
 		return { queued, merged };
 	}
 
+	async businessFilingRequested(
+		records: { contactId?: string; companyId?: string }[],
+		reason: string,
+	): Promise<number> {
+		let queued = 0;
+
+		await runWithConcurrency(
+			records,
+			AGENT_DISPATCH.businessFiling.concurrency,
+			async (record) => {
+				const created = await this.db.$transaction((tx) =>
+					this.enqueue(
+						{
+							...record,
+							kind: "business-filing",
+							reason,
+							priority: PRIORITY.businessFiling,
+							budget: AGENT_DISPATCH.businessFiling.budget,
+						},
+						false,
+						tx,
+					),
+				);
+				if (created) queued += 1;
+			},
+		);
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "business-filing",
+			requested: records.length,
+			queued,
+		});
+
+		if (queued > 0) this.poke();
+
+		return queued;
+	}
+
 	async meetingSoon(contactId: string, when: Date): Promise<void> {
 		await this.enqueue({
 			contactId,

@@ -32,6 +32,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { type ComponentProps, Suspense, useId, useState } from "react";
 import { toast } from "sonner";
+import {
+	BusinessSelectField,
+	useBusinessChoice,
+} from "@/components/businesses/business-select-field";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
@@ -68,6 +72,7 @@ function CreateCompanyForm() {
 	const [name, setName] = useState("");
 	const [domain, setDomain] = useState("");
 	const [ownerId, setOwnerId] = useState(UNASSIGNED);
+	const business = useBusinessChoice();
 
 	const nameId = useId();
 	const domainId = useId();
@@ -82,6 +87,7 @@ function CreateCompanyForm() {
 				await setOpen(null);
 				setName("");
 				setDomain("");
+				business.reset();
 				setOwnerId(UNASSIGNED);
 				openRecord({ kind: "company", id: company.id });
 			},
@@ -112,6 +118,7 @@ function CreateCompanyForm() {
 							name,
 							domain: domain || undefined,
 							ownerId: ownerId === UNASSIGNED ? null : ownerId,
+							businessId: business.businessId(),
 						});
 					}}
 				>
@@ -160,6 +167,10 @@ function CreateCompanyForm() {
 								</SelectContent>
 							</Select>
 						</Field>
+						<BusinessSelectField
+							id="create-company-business"
+							choice={business}
+						/>
 					</FieldGroup>
 				</form>
 

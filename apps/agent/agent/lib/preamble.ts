@@ -1,5 +1,15 @@
 import { db } from "@crm/db";
 import { websiteUrl } from "@crm/db/workspace";
+import {
+	businessesMarkdown,
+	type FilingBusiness,
+	listFilingBusinesses,
+} from "./business-filing";
+import {
+	decisionsMarkdown,
+	type FilingDecision,
+	recentDecisions,
+} from "./business-filing-learning";
 import { capabilitiesMarkdown } from "./capabilities";
 import { identity, usMarkdown, type WorkspaceIdentity } from "./workspace";
 
@@ -26,10 +36,51 @@ export async function sessionPreamble(
 	opened: Opened,
 ): Promise<Preamble> {
 	if (opened.kind === "workspace-profile") return workspacePreamble();
+	const preamble = await recordPreamble(record, opened);
+
+	if (opened.kind !== "business-filing") return preamble;
+
+	return {
+		...preamble,
+		markdown: `${filingMarkdown(
+			await listFilingBusinesses(),
+			await recentDecisions(),
+		)}\n\n${preamble.markdown}`,
+	};
+}
+
+async function recordPreamble(
+	record: {
+		contactId?: string | null;
+		companyId?: string | null;
+		dealId?: string | null;
+	},
+	opened: Opened,
+): Promise<Preamble> {
 	if (record.contactId) return contactPreamble(record.contactId, opened);
 	if (record.companyId) return companyPreamble(record.companyId, opened);
 	if (record.dealId) return dealPreamble(record.dealId, opened);
 	return noRecordPreamble();
+}
+
+function filingMarkdown(
+	businesses: FilingBusiness[],
+	decisions: FilingDecision[],
+): string {
+	const intro = [
+		"**This is a business-filing task.** Decide which of the businesses below",
+		"this record belongs to. Each playbook says who buys from that business and",
+		"what a good lead looks like. Read the record's history first. Then call",
+		"`file_into_business` once for each business it clearly belongs to, and cite",
+		"the emails and meetings that show it by their ids. The tool files directly",
+		"only when the record has no business yet and an email or meeting backs it;",
+		"otherwise it leaves a suggestion for a person. If nothing points to any",
+		"business, file nothing and say so. Never guess from a name alone.",
+	].join(" ");
+
+	return [intro, businessesMarkdown(businesses), decisionsMarkdown(decisions)]
+		.filter(Boolean)
+		.join("\n\n");
 }
 
 export async function composeClosing(

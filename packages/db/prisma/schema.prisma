@@ -33,6 +33,15 @@ model User {
   fieldValues    FieldValue[]        @relation("FieldValueUser")
   savedViews     SavedView[]         @relation("SavedViewOwner")
 
+  createdBusinesses           Business[]            @relation("BusinessCreator")
+  updatedBusinesses           Business[]            @relation("BusinessUpdater")
+  businessPositions           BusinessPosition[]
+  businessFocus               BusinessFocus?
+  companyBusinessAdds         CompanyBusiness[]     @relation("CompanyBusinessAdder")
+  contactBusinessAdds         ContactBusiness[]     @relation("ContactBusinessAdder")
+  businessSuggestionDecisions BusinessSuggestion[]  @relation("BusinessSuggestionDecider")
+  createdBusinessRules        BusinessRule[]        @relation("BusinessRuleCreator")
+
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
   createdAgentTriggers    AgentTrigger[]                @relation("AgentTriggerCreator")
@@ -321,15 +330,17 @@ model Company {
   lastActivityAt DateTime?
   archivedAt     DateTime?
 
-  contacts       Contact[]           @relation("CompanyContacts")
-  conversations  AgentConversation[]
-  deals          Deal[]
-  activities     Activity[]
-  emailThreads   EmailThread[]
-  calendarEvents CalendarEvent[]
-  fieldValues    FieldValue[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  contacts            Contact[]            @relation("CompanyContacts")
+  conversations       AgentConversation[]
+  deals               Deal[]
+  activities          Activity[]
+  emailThreads        EmailThread[]
+  calendarEvents      CalendarEvent[]
+  fieldValues         FieldValue[]
+  businesses          CompanyBusiness[]
+  businessSuggestions BusinessSuggestion[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@unique([domain], map: "company_domain_active_key", where: { archivedAt: null })
   @@index([ownerId])
@@ -384,16 +395,18 @@ model Contact {
   lastActivityAt DateTime?
   archivedAt     DateTime?
 
-  deals           DealContact[]
-  activities      Activity[]
-  emailThreads    EmailThread[]
-  calendarEvents  CalendarEvent[]
-  eventAttendance CalendarAttendee[]
-  fieldValues     FieldValue[]
-  visitors        TrackedVisitor[]   @relation("VisitorContact")
-  submissions     FormSubmission[]   @relation("SubmissionContact")
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  deals               DealContact[]
+  activities          Activity[]
+  emailThreads        EmailThread[]
+  calendarEvents      CalendarEvent[]
+  eventAttendance     CalendarAttendee[]
+  fieldValues         FieldValue[]
+  visitors            TrackedVisitor[]     @relation("VisitorContact")
+  submissions         FormSubmission[]     @relation("SubmissionContact")
+  businesses          ContactBusiness[]
+  businessSuggestions BusinessSuggestion[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@unique([email], map: "contact_email_active_key", where: { archivedAt: null })
   @@index([companyId])
@@ -922,6 +935,8 @@ model Deal {
   company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   ownerId       String
   owner         User                @relation("DealOwner", fields: [ownerId], references: [id])
+  businessId    String?
+  business      Business?           @relation(fields: [businessId], references: [id], onDelete: SetNull)
 
   stage             DealStage @default(DEMO_BOOKED)
   stageChangedAt    DateTime  @default(now())
@@ -953,7 +968,149 @@ model Deal {
   @@index([baseAmount])
   @@index([currency])
   @@index([archivedAt])
+  @@index([businessId])
   @@map("deal")
+}
+
+model Business {
+  id       String  @id @default(cuid())
+  name     String
+  tone     Int     @default(0)
+  playbook String?
+
+  monthlyTarget         Decimal? @db.Decimal(14, 2)
+  monthlyTargetCurrency String?
+
+  createdById String?
+  createdBy   User?   @relation("BusinessCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?   @relation("BusinessUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  positions   BusinessPosition[]
+  focusedBy   BusinessFocus[]
+  companies   CompanyBusiness[]
+  contacts    ContactBusiness[]
+  deals       Deal[]
+  suggestions BusinessSuggestion[]
+  rules       BusinessRule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+  @@map("business")
+}
+
+enum BusinessFilingSource {
+  MANUAL
+  AGENT
+  RULE
+}
+
+enum BusinessRuleKind {
+  EMAIL_DOMAIN
+  MAILBOX
+}
+
+model BusinessRule {
+  id          String           @id @default(cuid())
+  businessId  String
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  kind        BusinessRuleKind
+  value       String
+  createdById String?
+  createdBy   User?            @relation("BusinessRuleCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+
+  @@unique([businessId, kind, value])
+  @@index([kind, value])
+  @@map("businessRule")
+}
+
+enum BusinessSuggestionStatus {
+  PROPOSED
+  ACCEPTED
+  DISMISSED
+}
+
+model BusinessSuggestion {
+  id          String                   @id @default(cuid())
+  businessId  String
+  business    Business                 @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company?                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId   String?
+  contact     Contact?                 @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status      BusinessSuggestionStatus @default(PROPOSED)
+  reason      String
+  evidence    Json?
+  decidedById String?
+  decidedBy   User?                    @relation("BusinessSuggestionDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt   DateTime?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@unique([businessId, companyId])
+  @@unique([businessId, contactId])
+  @@index([status, createdAt])
+  @@index([companyId])
+  @@index([contactId])
+  @@map("businessSuggestion")
+}
+
+model BusinessPosition {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  position   Int
+
+  @@id([userId, businessId])
+  @@index([userId, position])
+  @@map("businessPosition")
+}
+
+model BusinessFocus {
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId])
+  @@map("businessFocus")
+}
+
+model CompanyBusiness {
+  companyId  String
+  company    Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  addedById  String?
+  addedBy    User?                @relation("CompanyBusinessAdder", fields: [addedById], references: [id], onDelete: SetNull)
+  source     BusinessFilingSource @default(MANUAL)
+  reason     String?
+  createdAt  DateTime             @default(now())
+
+  @@id([companyId, businessId])
+  @@index([businessId, companyId])
+  @@map("companyBusiness")
+}
+
+model ContactBusiness {
+  contactId  String
+  contact    Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  addedById  String?
+  addedBy    User?                @relation("ContactBusinessAdder", fields: [addedById], references: [id], onDelete: SetNull)
+  source     BusinessFilingSource @default(MANUAL)
+  reason     String?
+  createdAt  DateTime             @default(now())
+
+  @@id([contactId, businessId])
+  @@index([businessId, contactId])
+  @@map("contactBusiness")
 }
 
 enum RateSource {
@@ -1310,6 +1467,8 @@ model AppSetting {
   ratesRefreshedAt DateTime?
 
   archiveRetentionDays Int @default(180)
+
+  businessFilingDailyLimit Int @default(100)
 
   trackingSiteId           String? @unique
   trackingCrossDomain      Boolean @default(true)

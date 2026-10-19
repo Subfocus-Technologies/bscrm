@@ -1,4 +1,5 @@
 import { ActivityType, type Db } from "@crm/db";
+import { automatedAuthorFor } from "@crm/db/business-filing";
 import type { ActivityMetaFields } from "@crm/validation/activity-meta";
 import { Injectable } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -20,7 +21,7 @@ export class EnrichmentLogService {
 	) {}
 
 	async record(event: EnrichmentEvent): Promise<string | null> {
-		const author = await this.authorFor(event);
+		const author = await automatedAuthorFor(this.db, event);
 		if (!author) return null;
 
 		const activity = await this.db.activity.create({
@@ -43,27 +44,6 @@ export class EnrichmentLogService {
 		);
 
 		return activity.id;
-	}
-
-	private async authorFor(event: EnrichmentEvent): Promise<string | null> {
-		if (event.contactId) {
-			const contact = await this.db.contact.findUnique({
-				where: { id: event.contactId },
-				select: { ownerId: true },
-			});
-			if (contact?.ownerId) return contact.ownerId;
-		}
-
-		if (event.companyId) {
-			const company = await this.db.company.findUnique({
-				where: { id: event.companyId },
-				select: { ownerId: true },
-			});
-			if (company?.ownerId) return company.ownerId;
-		}
-
-		const anyUser = await this.db.user.findFirst({ select: { id: true } });
-		return anyUser?.id ?? null;
 	}
 }
 

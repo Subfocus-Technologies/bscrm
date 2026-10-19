@@ -121,6 +121,22 @@ export async function completeTask(
 	});
 }
 
+export async function deferTask(
+	taskId: string,
+	until: Date,
+	reason: string,
+): Promise<void> {
+	await db.agentTask.updateMany({
+		where: { id: taskId, finishedAt: null },
+		data: {
+			dueAt: until,
+			leasedUntil: null,
+			attempts: { decrement: 1 },
+			reason,
+		},
+	});
+}
+
 export async function taskSubject(taskId: string): Promise<TaskSubject | null> {
 	return db.agentTask.findUnique({
 		where: { id: taskId },

@@ -26,6 +26,7 @@ import { SavedViewsMenu } from "@/components/data-table/saved-views-menu";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { ACTIVITY_FACET_OPTIONS } from "@/lib/activity-recency";
+import { useBusinessFocus } from "@/lib/business-focus";
 import {
 	ENRICHMENT_FACET_OPTIONS,
 	ENRICHMENT_POLL_MS,
@@ -177,8 +178,9 @@ export function CompaniesTable() {
 	const table = useTableQuery(companiesSearchParams);
 	const { query, input, setArchived } = table;
 
+	const business = useBusinessFocus();
 	const companies = useQuery({
-		...trpc.companies.list.queryOptions(input),
+		...trpc.companies.list.queryOptions({ ...input, business }),
 		placeholderData: (previous) => previous,
 		refetchInterval: (query) =>
 			query.state.data?.rows.some((row) =>

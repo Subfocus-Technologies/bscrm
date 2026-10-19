@@ -207,6 +207,7 @@ export async function readCrmHistory(
 					orderBy: { lastMessageAt: "desc" },
 					take: options.threads ?? 5,
 					select: {
+						id: true,
 						subject: true,
 						messageCount: true,
 						lastMessageAt: true,
@@ -233,6 +234,7 @@ export async function readCrmHistory(
 					orderBy: { startsAt: "desc" },
 					take: 10,
 					select: {
+						id: true,
 						title: true,
 						startsAt: true,
 						attendees: {
@@ -284,6 +286,7 @@ export async function readCrmHistory(
 			expectedCloseDate: deal.expectedCloseDate?.toISOString() ?? null,
 		})),
 		threads: threads.map((thread) => ({
+			id: thread.id,
 			subject: thread.subject,
 			messageCount: thread.messageCount,
 			lastMessageAt: thread.lastMessageAt.toISOString(),
@@ -296,6 +299,7 @@ export async function readCrmHistory(
 			})),
 		})),
 		meetings: meetings.map((meeting) => ({
+			id: meeting.id,
 			title: meeting.title,
 			startsAt: meeting.startsAt.toISOString(),
 			attended: meeting.attendees.some(

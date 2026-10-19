@@ -73,12 +73,17 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
 	);
 }
 
-function CardPanel({ className, ...props }: React.ComponentProps<"div">) {
+function CardPanel({
+	className,
+	size = "chart",
+	...props
+}: React.ComponentProps<"div"> & { size?: "chart" | "content" }) {
 	return (
 		<div
 			data-slot="card-panel"
+			data-size={size}
 			className={cn(
-				"flex h-80 min-h-0 flex-col overflow-hidden rounded-lg border bg-card",
+				"flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card data-[size=chart]:h-80",
 				className,
 			)}
 			{...props}

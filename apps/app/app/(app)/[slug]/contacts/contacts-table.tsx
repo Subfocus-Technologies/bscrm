@@ -25,6 +25,7 @@ import { SavedViewsMenu } from "@/components/data-table/saved-views-menu";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { ACTIVITY_FACET_OPTIONS } from "@/lib/activity-recency";
+import { useBusinessFocus } from "@/lib/business-focus";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { ContactsBulkActions } from "./contacts-bulk-actions";
@@ -150,8 +151,9 @@ export function ContactsTable() {
 	const table = useTableQuery(contactsSearchParams);
 	const { query, input, setArchived } = table;
 
+	const business = useBusinessFocus();
 	const contacts = useQuery({
-		...trpc.contacts.list.queryOptions(input),
+		...trpc.contacts.list.queryOptions({ ...input, business }),
 		placeholderData: (previous) => previous,
 	});
 	const users = useQuery(trpc.users.list.queryOptions());

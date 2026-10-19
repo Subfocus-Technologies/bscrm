@@ -11,4 +11,5 @@ export const AGENT_DISPATCH = {
 		redeliverBatch: 20,
 	},
 	fieldBackfill: { concurrency: 8 },
+	businessFiling: { concurrency: 8, budget: 1 },
 } as const;

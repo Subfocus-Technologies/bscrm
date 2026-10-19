@@ -26,6 +26,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-sidebar";
+import {
+	BusinessMobileList,
+	BusinessRail,
+} from "@/components/businesses/business-rail";
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
 import { useMobileNav } from "@/components/mobile-nav";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
@@ -231,8 +235,9 @@ export function AppIconRail() {
 		<>
 			<nav
 				aria-label="Primary"
-				className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r py-3 md:flex [view-transition-name:app-rail]"
+				className="hidden w-14 shrink-0 flex-col items-center gap-1 overflow-y-auto border-r py-3 md:flex [view-transition-name:app-rail]"
 			>
+				<BusinessRail />
 				{items.map((item) => (
 					<RailLink
 						key={item.href}
@@ -266,6 +271,7 @@ export function AppIconRail() {
 								<Icon icon={Close} />
 							</Button>
 							<div className="my-1 h-px w-5 bg-border" />
+							<BusinessRail />
 							{items.map((item) => (
 								<MobileRailIconLink
 									key={item.href}
@@ -288,8 +294,10 @@ export function AppIconRail() {
 						</SheetHeader>
 						<nav
 							aria-label="Primary"
-							className="flex flex-1 flex-col gap-1 p-2"
+							className="flex flex-1 flex-col gap-1 overflow-y-auto p-2"
 						>
+							<BusinessMobileList onNavigate={() => setOpen(false)} />
+							<div className="my-1 h-px bg-border" />
 							{items.map((item) => (
 								<MobileRailLink
 									key={item.href}

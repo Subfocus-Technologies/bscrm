@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import { BusinessCrumb } from "@/components/businesses/business-crumb";
 import { EnrichmentQueue } from "@/components/enrichment-queue";
 import { useMobileNav } from "@/components/mobile-nav";
 import { signOutAndRedirect } from "@/lib/sign-out";
@@ -59,6 +60,7 @@ export function AppHeader({ user }: { user: User }) {
 				</Link>
 				<Separator orientation="vertical" className="mx-1 h-5 bg-transparent" />
 				<span className="min-w-0 truncate font-medium text-sm">{label}</span>
+				<BusinessCrumb />
 			</div>
 
 			<div className="ml-auto flex shrink-0 items-center gap-1.5">

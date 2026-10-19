@@ -7,6 +7,7 @@ import {
 	PageShellHeading,
 	PageShellLoading,
 } from "@/components/page-shell";
+import { loadBusinessFocus } from "@/lib/business-focus-server";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -49,14 +50,15 @@ export default function OverviewPage({ searchParams }: PageProps<"/[slug]">) {
 async function Summary({
 	searchParams,
 }: Pick<PageProps<"/[slug]">, "searchParams">) {
-	const [, { scope }] = await Promise.all([
+	const [, { scope }, business] = await Promise.all([
 		requireSession(),
 		loadOverviewSearchParams(searchParams),
+		loadBusinessFocus(),
 	]);
 
 	const queryClient = getServerQueryClient();
 	await queryClient.prefetchQuery(
-		getServerTrpc().dashboard.summary.queryOptions({ scope }),
+		getServerTrpc().dashboard.summary.queryOptions({ scope, business }),
 	);
 
 	return (

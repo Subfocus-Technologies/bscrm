@@ -27,6 +27,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { type ComponentProps, Suspense, useId, useState } from "react";
 import { toast } from "sonner";
+import {
+	BusinessSelectField,
+	useBusinessChoice,
+} from "@/components/businesses/business-select-field";
 import { CompanyPicker } from "@/components/crm/company-picker";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
@@ -67,6 +71,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 	const [title, setTitle] = useState("");
 	const [company, setCompany] = useState(companyId ?? NONE);
 	const [ownerId, setOwnerId] = useState(NONE);
+	const business = useBusinessChoice();
 
 	const firstNameId = useId();
 	const lastNameId = useId();
@@ -87,6 +92,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 				setLastName("");
 				setEmail("");
 				setTitle("");
+				business.reset();
 				openRecord({ kind: "contact", id: contact.id });
 			},
 			onError: (error) => toast.error(error.message),
@@ -119,6 +125,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 							title: title || undefined,
 							companyId: company === NONE ? null : company,
 							ownerId: ownerId === NONE ? null : ownerId,
+							businessId: business.businessId(),
 						});
 					}}
 				>
@@ -192,6 +199,10 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 								</SelectContent>
 							</Select>
 						</Field>
+						<BusinessSelectField
+							id="create-contact-business"
+							choice={business}
+						/>
 					</FieldGroup>
 				</form>
 

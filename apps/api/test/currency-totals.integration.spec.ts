@@ -64,7 +64,10 @@ async function clearRates() {
 }
 
 async function pipelineCents(): Promise<number> {
-	const summary = await dashboard.summary(userId, { scope: "me" });
+	const summary = await dashboard.summary(userId, {
+		scope: "me",
+		business: null,
+	});
 	return summary.pipeline.totalCents;
 }
 
@@ -161,7 +164,10 @@ describe("a total across currencies", () => {
 
 		expect(await pipelineCents()).toBe(before);
 
-		const summary = await dashboard.summary(userId, { scope: "me" });
+		const summary = await dashboard.summary(userId, {
+			scope: "me",
+			business: null,
+		});
 		expect(summary.reportingCurrency).toBe("USD");
 		expect(summary.unconverted.count).toBe(1);
 		expect(summary.unconverted.currencies).toEqual(["CHF"]);
@@ -177,7 +183,10 @@ describe("a total across currencies", () => {
 			MILLION + 1.1 * MILLION + 1.25 * HALF_MILLION,
 		);
 
-		const summary = await dashboard.summary(userId, { scope: "me" });
+		const summary = await dashboard.summary(userId, {
+			scope: "me",
+			business: null,
+		});
 		expect(summary.unconverted.count).toBe(0);
 	});
 
@@ -214,7 +223,10 @@ describe("a total across currencies", () => {
 		const rerated = await conversion.rerateAll();
 		expect(rerated.missing).toContain("USD");
 
-		const summary = await dashboard.summary(userId, { scope: "me" });
+		const summary = await dashboard.summary(userId, {
+			scope: "me",
+			business: null,
+		});
 
 		expect(summary.reportingCurrency).toBe("EUR");
 		expect(summary.pipeline.totalCents).toBe(MILLION);
@@ -239,6 +251,7 @@ describe("the deals list", () => {
 			closing: [],
 			fields: {},
 			archived: false,
+			business: null,
 		});
 
 		expect(list.reportingCurrency).toBe("USD");
@@ -258,7 +271,10 @@ describe("a converted figure knows which currency it is in", () => {
 		await conversion.rerateAll();
 
 		const before = await pipelineCents();
-		const summary = await dashboard.summary(userId, { scope: "me" });
+		const summary = await dashboard.summary(userId, {
+			scope: "me",
+			business: null,
+		});
 		expect(summary.unconverted.count).toBe(0);
 
 		const deal = await deals.create({
@@ -278,7 +294,10 @@ describe("a converted figure knows which currency it is in", () => {
 
 		expect(await pipelineCents()).toBe(before);
 
-		const stale = await dashboard.summary(userId, { scope: "me" });
+		const stale = await dashboard.summary(userId, {
+			scope: "me",
+			business: null,
+		});
 		expect(stale.unconverted.count).toBe(1);
 
 		const filled = await conversion.fillMissing();
@@ -311,7 +330,10 @@ describe("a converted figure knows which currency it is in", () => {
 
 		expect(await pipelineCents()).toBe(before);
 
-		const summary = await dashboard.summary(userId, { scope: "me" });
+		const summary = await dashboard.summary(userId, {
+			scope: "me",
+			business: null,
+		});
 		expect(summary.unconverted.count).toBe(1);
 
 		await conversion.fillMissing();
@@ -486,7 +508,10 @@ describe("the dashboard only values what it can convert", () => {
 
 		const unvalued = await stale("Stale win", DealStage.CLOSED_WON);
 
-		const summary = await dashboard.summary(analystId, { scope: "me" });
+		const summary = await dashboard.summary(analystId, {
+			scope: "me",
+			business: null,
+		});
 
 		expect(summary.performance.wins).toBe(2);
 		expect(summary.performance.avgDealCents).toBe(10_000);
@@ -506,7 +531,10 @@ describe("the dashboard only values what it can convert", () => {
 
 		const unvalued = await stale("Stale open", DealStage.DEMO_BOOKED);
 
-		const summary = await dashboard.summary(analystId, { scope: "me" });
+		const summary = await dashboard.summary(analystId, {
+			scope: "me",
+			business: null,
+		});
 
 		expect(summary.biggestOpen[0]?.id).toBe(open.id);
 		expect(summary.biggestOpen[0]?.baseAmountCents).toBe(10_000);

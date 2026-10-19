@@ -21,6 +21,8 @@ import {
 } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ARCHIVE } from "../archive/archive-config";
+import { dealBusinessScope } from "../businesses/business-scope";
+import { requireBusiness } from "../businesses/require-business";
 import {
 	ActivityStampService,
 	type StampTargets,
@@ -251,6 +253,8 @@ export class DealsService {
 	}
 
 	async create(input: DealCreateInput) {
+		await requireBusiness(this.db, input.businessId);
+
 		const stage = input.stage ?? "DEMO_BOOKED";
 		const closed = isClosedStage(stage);
 		const now = new Date();
@@ -270,6 +274,7 @@ export class DealsService {
 						name: input.name.trim(),
 						companyId: input.companyId,
 						ownerId: input.ownerId,
+						businessId: input.businessId ?? null,
 						stage,
 						stageChangedAt: now,
 						closedAt: closed ? now : null,
@@ -754,6 +759,7 @@ export class DealsService {
 		const and: Prisma.DealWhereInput[] = [
 			this.searchFilter(input.q),
 			archivedFilter(input.archived),
+			dealBusinessScope(input.business),
 			...this.fields.fieldFilters(filterableFields, input.fields),
 		];
 
@@ -786,7 +792,11 @@ export class DealsService {
 		filterableFields: FieldDefinitionWithOptions[],
 	) {
 		const where: Prisma.DealWhereInput = {
-			AND: [this.searchFilter(input.q), archivedFilter(input.archived)],
+			AND: [
+				this.searchFilter(input.q),
+				archivedFilter(input.archived),
+				dealBusinessScope(input.business),
+			],
 		};
 
 		const [owners, stages, fieldFacets, ...closingCounts] = await Promise.all([

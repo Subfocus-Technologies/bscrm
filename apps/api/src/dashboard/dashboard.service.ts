@@ -1,10 +1,15 @@
-import { ActivityType, type Db, DealStage } from "@crm/db";
+import { ActivityType, type Db, DealStage, type Prisma } from "@crm/db";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
 import { activityMeta } from "@crm/validation/activity-meta";
 import { Injectable } from "@nestjs/common";
+import {
+	activityBusinessScope,
+	dealBusinessScope,
+} from "../businesses/business-scope";
 import { toCents } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
+import { type BusinessTargets, businessTargets } from "./business-targets";
 import type { DashboardSummaryInput } from "./dashboard.contracts";
 
 const OWNER_SELECT = {
@@ -39,7 +44,13 @@ export class DashboardService {
 
 	async summary(actingUserId: string, input: DashboardSummaryInput) {
 		const mine = input.scope === "me";
-		const owned = mine ? { ownerId: actingUserId } : {};
+		const ownerScope: Prisma.DealWhereInput = mine
+			? { ownerId: actingUserId }
+			: {};
+		const owned: Prisma.DealWhereInput = {
+			AND: [ownerScope, dealBusinessScope(input.business)],
+		};
+		const activityScope = activityBusinessScope(input.business);
 
 		const now = new Date();
 		const startOfMonth = monthStart(now, 0);
@@ -50,6 +61,15 @@ export class DashboardService {
 
 		const base = await this.conversion.reportingCurrency();
 		const counted = this.conversion.countedWhere(base);
+		const targets = await businessTargets(this.db, {
+			business: input.business,
+			base,
+			counted,
+			month: { start: startOfMonth, end: startOfNextMonth },
+		});
+		const byBusiness = input.business
+			? Promise.resolve([])
+			: this.pipelineByBusiness(owned, counted, targets.byBusiness);
 
 		const [
 			openByStage,
@@ -138,6 +158,7 @@ export class DashboardService {
 					completedAt: null,
 					dueAt: { lt: now },
 					createdById: actingUserId,
+					...activityScope,
 				},
 				orderBy: [{ dueAt: "asc" }],
 				take: 10,
@@ -150,7 +171,9 @@ export class DashboardService {
 				},
 			}),
 			this.db.activity.findMany({
-				where: mine ? { createdById: actingUserId } : {},
+				where: {
+					AND: [mine ? { createdById: actingUserId } : {}, activityScope],
+				},
 				orderBy: [{ createdAt: "desc" }],
 				take: 12,
 				select: {
@@ -235,6 +258,8 @@ export class DashboardService {
 
 		return {
 			scope: input.scope,
+			byBusiness: await byBusiness,
+			target: targets.overall,
 			reportingCurrency: base,
 			unconverted,
 			pipeline: {
@@ -286,5 +311,63 @@ export class DashboardService {
 				meta: activityMeta.parse(meta),
 			})),
 		};
+	}
+
+	private async pipelineByBusiness(
+		scope: Prisma.DealWhereInput,
+		counted: Prisma.DealWhereInput,
+		targets: BusinessTargets["byBusiness"],
+	) {
+		const open: Prisma.DealWhereInput = {
+			AND: [scope, { stage: { in: [...OPEN_DEAL_STAGES] } }],
+		};
+
+		const [counts, values] = await Promise.all([
+			this.db.deal.groupBy({
+				by: ["businessId"],
+				where: open,
+				_count: { _all: true },
+			}),
+			this.db.deal.groupBy({
+				by: ["businessId"],
+				where: { AND: [open, counted] },
+				_sum: { baseAmount: true },
+			}),
+		]);
+
+		const businesses = await this.db.business.findMany({
+			select: { id: true, name: true },
+			orderBy: { name: "asc" },
+		});
+		if (businesses.length === 0) return [];
+
+		const rows: { businessId: string | null; name: string | null }[] = [
+			...businesses.map((business) => ({
+				businessId: business.id,
+				name: business.name,
+			})),
+			{ businessId: null, name: null },
+		];
+
+		return rows
+			.map((row) => ({
+				...row,
+				count:
+					counts.find((group) => group.businessId === row.businessId)?._count
+						._all ?? 0,
+				valueCents:
+					toCents(
+						values.find((group) => group.businessId === row.businessId)?._sum
+							.baseAmount ?? null,
+					) ?? 0,
+				wonCents: row.businessId
+					? (targets.get(row.businessId)?.wonCents ?? 0)
+					: 0,
+				targetCents: row.businessId
+					? (targets.get(row.businessId)?.targetCents ?? null)
+					: null,
+			}))
+			.filter((row) => row.businessId !== null || row.count > 0)
+			.sort((left, right) => right.valueCents - left.valueCents);
 	}
 }

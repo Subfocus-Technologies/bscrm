@@ -24,6 +24,7 @@ import {
 import { formatMoney } from "@crm/ui/lib/format";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { RecordBusinessesField } from "@/components/businesses/record-businesses-field";
 import { AgentPanel } from "@/components/crm/agent-panel";
 import { EnrichmentActions } from "@/components/crm/enrichment-actions";
 import { EnrichmentIndicator } from "@/components/crm/enrichment-status";
@@ -400,6 +401,7 @@ function CompanyOverview({ company }: { company: Company }) {
 									save({ ownerId: ownerId === UNASSIGNED ? null : ownerId })
 								}
 							/>
+							<RecordBusinessesField kind="company" recordId={company.id} />
 							<RecordFields
 								fields={company.fields}
 								saving={isSavingField}

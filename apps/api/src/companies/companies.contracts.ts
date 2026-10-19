@@ -3,7 +3,11 @@ import { FIELD_TYPES } from "@crm/db/fields";
 import { z } from "zod";
 import { bulkIdsInput } from "../crm/bulk";
 import { fieldEntity, recordFieldValues } from "../fields/fields.contracts";
-import { activityFacetInput, listInput } from "../trpc/list-input";
+import {
+	activityFacetInput,
+	businessScopeInput,
+	listInput,
+} from "../trpc/list-input";
 
 export const companyListInput = listInput.extend({
 	owner: z.array(z.string()).default([]),
@@ -13,6 +17,7 @@ export const companyListInput = listInput.extend({
 	activity: activityFacetInput.default([]),
 	fields: z.record(z.string(), z.array(z.string())).default({}),
 	archived: z.boolean().default(false),
+	business: businessScopeInput,
 });
 
 export type CompanyListInput = z.infer<typeof companyListInput>;
@@ -21,6 +26,7 @@ export const companyCreateInput = z.object({
 	name: z.string().trim().min(1, "A company needs a name."),
 	domain: z.string().trim().optional(),
 	ownerId: z.string().nullable().optional(),
+	businessId: z.string().nullable().optional(),
 });
 
 export type CompanyCreateInput = z.infer<typeof companyCreateInput>;

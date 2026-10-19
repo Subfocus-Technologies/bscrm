@@ -23,6 +23,7 @@ import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { TableCell } from "@crm/ui/components/table";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { RecordBusinessesField } from "@/components/businesses/record-businesses-field";
 import { AgentPanel } from "@/components/crm/agent-panel";
 import { InlineCompanyField } from "@/components/crm/company-picker";
 import { contactName } from "@/components/crm/contact-name";
@@ -406,6 +407,7 @@ function ContactOverview({ contact }: { contact: Contact }) {
 							save({ ownerId: ownerId === NONE ? null : ownerId })
 						}
 					/>
+					<RecordBusinessesField kind="contact" recordId={contact.id} />
 					<RecordFields
 						fields={contact.fields}
 						saving={isSavingField}

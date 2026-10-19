@@ -154,6 +154,39 @@ export async function writeArchiveRetentionDays(
 	return archiveRetentionDays;
 }
 
+export const BUSINESS_FILING_LIMIT = {
+	default: 100,
+	min: 0,
+	max: 5000,
+} as const;
+
+export async function readBusinessFilingDailyLimit(db: Db): Promise<number> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: { businessFilingDailyLimit: true },
+	});
+
+	return row?.businessFilingDailyLimit ?? BUSINESS_FILING_LIMIT.default;
+}
+
+export async function writeBusinessFilingDailyLimit(
+	db: Db,
+	limit: number,
+): Promise<number> {
+	const businessFilingDailyLimit = Math.min(
+		Math.max(Math.round(limit), BUSINESS_FILING_LIMIT.min),
+		BUSINESS_FILING_LIMIT.max,
+	);
+
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: { id: SETTINGS_ID, businessFilingDailyLimit },
+		update: { businessFilingDailyLimit },
+	});
+
+	return businessFilingDailyLimit;
+}
+
 export function maskKey(key: string): string {
 	const trimmed = key.trim();
 	return trimmed.length > 4 ? `••••${trimmed.slice(-4)}` : "••••";

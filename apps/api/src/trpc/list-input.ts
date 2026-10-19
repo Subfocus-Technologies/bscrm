@@ -10,6 +10,8 @@ export const listInput = z.object({
 
 export type ListInput = z.infer<typeof listInput>;
 
+export const businessScopeInput = z.string().nullable().default(null);
+
 export type FacetCount = Record<string, number>;
 
 type FacetCounts = Record<string, FacetCount>;

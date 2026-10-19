@@ -10,6 +10,7 @@ import {
 	PageShellLoading,
 	PageShellTitle,
 } from "@/components/page-shell";
+import { loadBusinessFocus } from "@/lib/business-focus-server";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -50,16 +51,20 @@ export default function CompaniesPage({
 async function Companies({
 	searchParams,
 }: Pick<PageProps<"/[slug]/companies">, "searchParams">) {
-	const [, values] = await Promise.all([
+	const [, values, business] = await Promise.all([
 		requireSession(),
 		companiesSearchParams.load(searchParams),
+		loadBusinessFocus(),
 	]);
 
 	const trpc = getServerTrpc();
 	const queryClient = getServerQueryClient();
 	await Promise.all([
 		queryClient.prefetchQuery(
-			trpc.companies.list.queryOptions(companiesSearchParams.toInput(values)),
+			trpc.companies.list.queryOptions({
+				...companiesSearchParams.toInput(values),
+				business,
+			}),
 		),
 		queryClient.prefetchQuery(trpc.users.list.queryOptions()),
 	]);

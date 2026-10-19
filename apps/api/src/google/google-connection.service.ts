@@ -1,7 +1,7 @@
 import { isGoogleConfigured, signsInWithGoogle } from "@crm/auth";
 import type { Db, Prisma } from "@crm/db";
+import { normalizeDomain } from "@crm/db/domain";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { normalizeDomain } from "../companies/domain";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import { MailboxMatchService } from "../mailbox/mailbox-match.service";

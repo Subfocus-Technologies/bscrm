@@ -17,6 +17,11 @@ import {
 import { AgentQueueService } from "../agent/agent-queue.service";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ARCHIVE } from "../archive/archive-config";
+import { contactBusinessScope } from "../businesses/business-scope";
+import {
+	businessMembershipCreate,
+	requireBusiness,
+} from "../businesses/require-business";
 import { CompanyDirectoryService } from "../companies/company-directory.service";
 import {
 	ActivityStampService,
@@ -260,7 +265,9 @@ export class ContactsService {
 		};
 	}
 
-	async create(input: ContactCreateInput) {
+	async create(input: ContactCreateInput, actingUserId: string | null = null) {
+		await requireBusiness(this.db, input.businessId);
+
 		const email = normalizeEmail(input.email ?? "");
 
 		if (email) {
@@ -298,6 +305,7 @@ export class ContactsService {
 					title: blankToNull(input.title ?? ""),
 					companyId,
 					ownerId: input.ownerId ?? null,
+					businesses: businessMembershipCreate(input.businessId, actingUserId),
 				},
 				select: {
 					id: true,
@@ -811,6 +819,7 @@ export class ContactsService {
 		const and: Prisma.ContactWhereInput[] = [
 			this.searchFilter(input.q),
 			archivedFilter(input.archived),
+			contactBusinessScope(input.business),
 			...this.fields.fieldFilters(filterableFields, input.fields),
 		];
 
@@ -840,7 +849,11 @@ export class ContactsService {
 		filterableFields: FieldDefinitionWithOptions[],
 	) {
 		const where = {
-			AND: [this.searchFilter(input.q), archivedFilter(input.archived)],
+			AND: [
+				this.searchFilter(input.q),
+				archivedFilter(input.archived),
+				contactBusinessScope(input.business),
+			],
 		};
 
 		const [

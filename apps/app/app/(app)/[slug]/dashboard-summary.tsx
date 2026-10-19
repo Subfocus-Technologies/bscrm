@@ -36,6 +36,7 @@ import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { activityLabel } from "@/lib/activity-presentation";
+import { useBusinessFocus } from "@/lib/business-focus";
 import { dealStageColor } from "@/lib/deal-stage";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
@@ -95,13 +96,14 @@ export function DashboardSummary() {
 	const openRecord = useOpenRecord();
 	const workspaceUrl = useWorkspaceUrl();
 
+	const business = useBusinessFocus();
 	const [scope] = useQueryState(
 		SEARCH_PARAM.overview.scope,
 		overviewParsers[SEARCH_PARAM.overview.scope],
 	);
 
 	const summaryQuery = useQuery({
-		...trpc.dashboard.summary.queryOptions({ scope }),
+		...trpc.dashboard.summary.queryOptions({ scope, business }),
 		placeholderData: (previous) => previous,
 	});
 

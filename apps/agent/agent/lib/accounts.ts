@@ -12,6 +12,7 @@ const stageChangeMeta = z
 	.catch({ from: null, to: null });
 
 export type AccountThread = {
+	id: string;
 	subject: string | null;
 	contact: { id: string; name: string } | null;
 	messageCount: number;
@@ -26,6 +27,7 @@ export type AccountThread = {
 };
 
 export type AccountMeeting = {
+	id: string;
 	title: string | null;
 	startsAt: string;
 	upcoming: boolean;
@@ -178,6 +180,7 @@ export async function readCompanyHistory(
 						orderBy: { lastMessageAt: "desc" },
 						take: options.threads ?? 5,
 						select: {
+							id: true,
 							subject: true,
 							messageCount: true,
 							lastMessageAt: true,
@@ -211,6 +214,7 @@ export async function readCompanyHistory(
 						orderBy: { startsAt: "desc" },
 						take: 10,
 						select: {
+							id: true,
 							title: true,
 							startsAt: true,
 							attendees: { select: { email: true, name: true } },
@@ -410,6 +414,7 @@ export async function readDealHistory(
 						orderBy: { lastMessageAt: "desc" },
 						take: options.threads ?? 5,
 						select: {
+							id: true,
 							subject: true,
 							messageCount: true,
 							lastMessageAt: true,
@@ -448,6 +453,7 @@ export async function readDealHistory(
 						orderBy: { startsAt: "desc" },
 						take: 10,
 						select: {
+							id: true,
 							title: true,
 							startsAt: true,
 							attendees: { select: { email: true, name: true } },
@@ -572,6 +578,7 @@ async function recentNotes(
 }
 
 function toAccountThread(thread: {
+	id: string;
 	subject: string | null;
 	messageCount: number;
 	lastMessageAt: Date;
@@ -586,6 +593,7 @@ function toAccountThread(thread: {
 	}[];
 }): AccountThread {
 	return {
+		id: thread.id,
 		subject: thread.subject,
 		contact: thread.contact
 			? { id: thread.contact.id, name: fullName(thread.contact) }
@@ -604,6 +612,7 @@ function toAccountThread(thread: {
 
 function toAccountMeeting(
 	meeting: {
+		id: string;
 		title: string | null;
 		startsAt: Date;
 		attendees: { email: string; name: string | null }[];
@@ -611,6 +620,7 @@ function toAccountMeeting(
 	now: Date,
 ): AccountMeeting {
 	return {
+		id: meeting.id,
 		title: meeting.title,
 		startsAt: meeting.startsAt.toISOString(),
 		upcoming: meeting.startsAt > now,

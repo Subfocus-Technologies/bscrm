@@ -172,6 +172,44 @@ first — the cron covers it, so this is for a machine pointed at another databa
 - **The 500-row cap is on the pass, not each query in it.** Deduplicate the union, cut
   to 500, count `remaining` against the union.
 
+## Business filing
+
+`business-filing` is a research-lane task that files a contact or company into
+one of our businesses. `lib/business-filing.ts` holds every rule; the tools
+`list_businesses` and `file_into_business` are thin.
+
+- **Queued two ways.** The `agent-event` handler queues one, five minutes out,
+  for every `contact.created` and `company.created` whose record is still in no
+  business (`queueFilingForEvent`). Settings → Businesses → *Sort them now* calls
+  `businesses.sortUnfiled`, which writes up to `BUSINESS_FILING.sweep.maxRecords`
+  rows through `AgentTriggerService.businessFilingRequested`.
+- **The tool decides, not the model.** It files directly only when the record is
+  in no business yet and a cited email thread or meeting really involves that
+  record. Anything else becomes a `BusinessSuggestion` a person accepts or
+  dismisses. A profile quote (`kind: "record"`) is never enough to file alone.
+- **A person's ruling is final.** Removing a record from a business writes a
+  `DISMISSED` suggestion, and the tool refuses that pair forever after.
+  Filing by hand settles any waiting suggestion as `ACCEPTED`.
+- **Playbooks are the brief.** `Business.playbook` is rendered into the
+  preamble of every filing session (`filingMarkdown` in `lib/preamble.ts`).
+- **Evidence is a shared shape.** `@crm/validation/business-filing` parses the
+  stored `evidence` JSON for both the agent and the API.
+- **Rules and following run first, and they are free.** `@crm/db/business-filing`
+  holds `applyRules` (an email domain, or mail sent to one of our addresses) and
+  the follow-the-company rule. Both run in `queueFilingForEvent` and in
+  `preflightFiling` before any session starts. A session starts only when
+  neither files the record.
+- **`fileRecord` is the one write path.** A person, a rule and the agent all file
+  through it, so records follow their company the same way, and a person's
+  ruling is respected for every automatic filing.
+- **The daily limit counts sessions, not filings.** `preflightFiling` defers a
+  task to the next UTC day once `AppSetting.businessFilingDailyLimit` sessions
+  have started today. Zero turns AI filing off; rules still run.
+- **The brief learns from people.** `lib/business-filing-learning.ts` puts the
+  newest hand filings and suggestion decisions into every filing preamble.
+- **Agent and rule filings write a timeline entry** (`ENRICHMENT`, `meta.filing`),
+  authored the same way as other automated entries.
+
 ## Evidence, not confidence
 
 **No tool accepts a confidence, a score, or a `sourceUrl` offered as proof.** Tools

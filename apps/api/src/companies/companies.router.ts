@@ -71,8 +71,11 @@ export class CompaniesRouter {
 		output: companySummaryOutput,
 		meta: restMeta("POST", "/companies", ["Companies"]),
 	})
-	async create(@Input() input: z.infer<typeof companyCreateInput>) {
-		return this.companies.create(input);
+	async create(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof companyCreateInput>,
+	) {
+		return this.companies.create(input, ctx.user.id);
 	}
 
 	@Mutation({

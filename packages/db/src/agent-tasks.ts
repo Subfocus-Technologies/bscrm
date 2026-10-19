@@ -11,6 +11,7 @@ export const TASK_KINDS = [
 	"slack-people-match",
 	"slack-channel-join",
 	"agent-event",
+	"business-filing",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];
@@ -52,6 +53,7 @@ export const PRIORITY = {
 	requested: 300,
 	meeting: 200,
 	identify: 100,
+	businessFiling: 90,
 	sweep: 50,
 	companyProfile: 40,
 	fieldBackfill: 20,

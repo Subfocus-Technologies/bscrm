@@ -8,6 +8,7 @@ import { ApiKeysModule } from "./api-keys/api-keys.module";
 import { ArchiveModule } from "./archive/archive.module";
 import { AuthModule } from "./auth/auth.module";
 import { BackfillModule } from "./backfill/backfill.module";
+import { BusinessesModule } from "./businesses/businesses.module";
 import { AppCacheModule } from "./cache/cache.module";
 import { CompaniesModule } from "./companies/companies.module";
 import { validateEnv } from "./config/env.validation";
@@ -79,6 +80,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		TrackingModule,
 		ArchiveModule,
 		SavedViewsModule,
+		BusinessesModule,
 	],
 })
 export class AppModule {}

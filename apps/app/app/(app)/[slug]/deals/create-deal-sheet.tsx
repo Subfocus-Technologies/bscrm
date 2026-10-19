@@ -1,7 +1,7 @@
 "use client";
 
 import Add from "@carbon/icons-react/es/Add";
-import { CURRENCIES } from "@crm/db/currency";
+import { CURRENCIES, DEFAULT_REPORTING_CURRENCY } from "@crm/db/currency";
 import { Button } from "@crm/ui/components/button";
 import { DatePicker } from "@crm/ui/components/date-picker";
 import {
@@ -34,6 +34,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { type ComponentProps, Suspense, useId, useState } from "react";
 import { toast } from "sonner";
+import {
+	BusinessSelectField,
+	useBusinessChoice,
+} from "@/components/businesses/business-select-field";
 import { CompanyPicker } from "@/components/crm/company-picker";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { dealStageLabel, OPEN_STAGES } from "@/lib/deal-stage";
@@ -76,6 +80,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 	const [amount, setAmount] = useState("");
 	const [currency, setCurrency] = useState("");
 	const [closeDate, setCloseDate] = useState("");
+	const business = useBusinessChoice();
 
 	const nameId = useId();
 	const amountId = useId();
@@ -87,7 +92,8 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 
 	const resolvedOwner = ownerId || me.data?.id || UNSET;
 	const workspaceCurrency = currencies.data?.reportingCurrency;
-	const resolvedCurrency = currency || workspaceCurrency || "USD";
+	const resolvedCurrency =
+		currency || workspaceCurrency || DEFAULT_REPORTING_CURRENCY;
 
 	const create = useMutation(
 		trpc.deals.create.mutationOptions({
@@ -99,6 +105,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 				setAmount("");
 				setCurrency("");
 				setCloseDate("");
+				business.reset();
 				openRecord({ kind: "deal", id: deal.id });
 			},
 			onError: (error) => toast.error(error.message),
@@ -131,6 +138,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 							name,
 							companyId: company,
 							ownerId: resolvedOwner,
+							businessId: business.businessId(),
 							stage: stage as never,
 							amountCents: Number.isFinite(parsed)
 								? Math.round(parsed * 100)
@@ -236,6 +244,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 								placeholder="No date yet"
 							/>
 						</Field>
+						<BusinessSelectField id="create-deal-business" choice={business} />
 					</FieldGroup>
 				</form>
 

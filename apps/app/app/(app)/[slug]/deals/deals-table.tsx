@@ -23,6 +23,7 @@ import { DealStageMenu } from "@/components/crm/stage-change";
 import { ListSearch } from "@/components/data-table/list-search";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalDay, LocalRelativeTime } from "@/components/local-date-time";
+import { useBusinessFocus } from "@/lib/business-focus";
 import { DEAL_STAGE_OPTIONS } from "@/lib/deal-stage";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -150,8 +151,9 @@ export function DealsTable() {
 	const prefetchRecord = usePrefetchRecord();
 	const { query, input, setArchived } = useTableQuery(dealsSearchParams);
 
+	const business = useBusinessFocus();
 	const deals = useQuery({
-		...trpc.deals.list.queryOptions(input),
+		...trpc.deals.list.queryOptions({ ...input, business }),
 		placeholderData: (previous) => previous,
 	});
 	const users = useQuery(trpc.users.list.queryOptions());
