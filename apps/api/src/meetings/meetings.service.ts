@@ -1,4 +1,5 @@
 import type { Db, Prisma } from "@crm/db";
+import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import { MEETING_NOTES, meetingNotesMeta } from "@crm/validation/meeting-notes";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
@@ -119,13 +120,22 @@ export class MeetingsService {
 			return contact ? [contact.id] : [];
 		});
 
-		const [users, preparing, notes] = await Promise.all([
+		const [users, preparing, failed, notes] = await Promise.all([
 			this.db.user.findMany({ select: { id: true, name: true, email: true } }),
 			this.db.agentTask.findMany({
 				where: {
 					kind: "meeting-prep",
 					finishedAt: null,
 					contactId: { in: contactIds },
+				},
+				select: { contactId: true },
+			}),
+			this.db.agentTask.findMany({
+				where: {
+					kind: "meeting-prep",
+					contactId: { in: contactIds },
+					finishedAt: { gte: from },
+					outcome: RETIRED_OUTCOME,
 				},
 				select: { contactId: true },
 			}),
@@ -144,6 +154,7 @@ export class MeetingsService {
 		);
 		const teamById = new Map(users.map((user) => [user.id, user.name]));
 		const preparingIds = new Set(preparing.map((task) => task.contactId));
+		const failedIds = new Set(failed.map((task) => task.contactId));
 		const notesByEvent = new Map(
 			notes.flatMap((activity) => {
 				const meta = meetingNotesMeta.parse(activity.meta);
@@ -173,7 +184,9 @@ export class MeetingsService {
 					? "preparing"
 					: contact.brief && contact.brief.refreshedAt.getTime() >= freshAfter
 						? "ready"
-						: "none";
+						: failedIds.has(contact.id)
+							? "failed"
+							: "none";
 
 			return {
 				id: event.id,

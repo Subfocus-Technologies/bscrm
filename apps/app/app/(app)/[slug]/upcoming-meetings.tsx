@@ -77,15 +77,25 @@ function PrepAction({ meeting }: { meeting: Meeting }) {
 		);
 	}
 
+	const failed = meeting.prep === "failed";
+
 	return (
-		<Button
-			size="xs"
-			disabled={prepare.isPending}
-			onClick={() => prepare.mutate({ eventId: meeting.id })}
-		>
-			{prepare.isPending ? <Spinner /> : null}
-			Prepare me
-		</Button>
+		<span className="flex items-center gap-2">
+			{failed ? (
+				<span className="text-muted-foreground">
+					The agent could not prepare a brief.
+				</span>
+			) : null}
+			<Button
+				size="xs"
+				variant={failed ? "outline" : "default"}
+				disabled={prepare.isPending}
+				onClick={() => prepare.mutate({ eventId: meeting.id })}
+			>
+				{prepare.isPending ? <Spinner /> : null}
+				{failed ? "Try again" : "Prepare me"}
+			</Button>
+		</span>
 	);
 }
 

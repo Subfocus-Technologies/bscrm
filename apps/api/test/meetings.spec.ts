@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
+import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { MeetingsService } from "../src/meetings/meetings.service";
 
@@ -115,5 +116,25 @@ describe("upcoming meetings", () => {
 
 		expect(await meetings.prepare(eventId, userId)).toEqual({ queued: true });
 		expect(prepared).toEqual([contactId]);
+	});
+
+	it("says so when the agent could not prepare a brief", async () => {
+		await meeting("m-board", 30, true);
+		const task = await db.agentTask.create({
+			data: {
+				kind: "meeting-prep",
+				reason: "test",
+				dueAt: new Date(),
+				contactId,
+				finishedAt: new Date(),
+				outcome: RETIRED_OUTCOME,
+			},
+			select: { id: true },
+		});
+
+		const [row] = mine(await meetings.upcoming({ business: null }));
+
+		expect(row?.prep).toBe("failed");
+		await db.agentTask.delete({ where: { id: task.id } });
 	});
 });

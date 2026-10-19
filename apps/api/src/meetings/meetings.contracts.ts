@@ -19,7 +19,7 @@ const meetingOutput = z.object({
 	team: z.array(z.string()),
 	contact: recordRef.nullable(),
 	company: recordRef.nullable(),
-	prep: z.enum(["none", "preparing", "ready", "unavailable"]),
+	prep: z.enum(["none", "preparing", "ready", "failed", "unavailable"]),
 	notesActivityId: z.string().nullable(),
 });
 
