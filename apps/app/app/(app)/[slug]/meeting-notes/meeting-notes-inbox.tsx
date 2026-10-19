@@ -19,7 +19,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useQueryStates } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
-import { CompanyPicker } from "@/components/crm/company-picker";
+import {
+	type PickedRecord,
+	RecordPicker,
+} from "@/components/crm/record-picker";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { CollapsibleNotes } from "@/components/crm/timeline/collapsible-notes";
 import { MeetingFollowUps } from "@/components/crm/timeline/meeting-follow-ups";
@@ -76,7 +79,7 @@ function isView(value: string): value is IncomingMeetingNoteView {
 function FileNote({ note }: { note: Note }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
-	const [companyId, setCompanyId] = useState("");
+	const [record, setRecord] = useState<PickedRecord | null>(null);
 
 	const file = useMutation(
 		trpc.meetingNotes.file.mutationOptions({
@@ -99,17 +102,23 @@ function FileNote({ note }: { note: Note }) {
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			<CompanyPicker
-				value={companyId}
-				onValueChange={setCompanyId}
-				placeholder="Choose the company"
+			<RecordPicker
+				value={record}
+				onValueChange={setRecord}
 				disabled={busy}
-				className="w-full sm:w-64"
+				className="w-full sm:w-72"
 			/>
 			<Button
 				size="sm"
-				disabled={!companyId || busy}
-				onClick={() => file.mutate({ id: note.id, companyId })}
+				disabled={!record || busy}
+				onClick={() =>
+					record &&
+					file.mutate(
+						record.kind === "contact"
+							? { id: note.id, contactId: record.id }
+							: { id: note.id, companyId: record.id },
+					)
+				}
 			>
 				{file.isPending ? <Spinner /> : null}
 				File notes

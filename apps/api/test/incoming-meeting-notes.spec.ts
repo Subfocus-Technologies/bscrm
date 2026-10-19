@@ -205,6 +205,25 @@ describe("the meeting notes inbox", () => {
 		).rejects.toThrow("Someone already filed or changed these notes.");
 	});
 
+	it("files a note under the contact a person chooses", async () => {
+		await incoming.receive(note(`Call ${suffix}`));
+		const row = await db.incomingMeetingNote.findFirstOrThrow({
+			where: { mailboxUserId: userId },
+			select: { id: true },
+		});
+
+		await incoming.file({ id: row.id, contactId }, otherUserId);
+
+		const filed = (await incoming.list({ view: "FILED", page: 1 })).items.find(
+			(item) => item.id === row.id,
+		);
+		expect(filed?.record).toEqual({
+			kind: "contact",
+			id: contactId,
+			name: "Lena",
+		});
+	});
+
 	it("puts a note back in the inbox when filing fails", async () => {
 		await incoming.receive(note(`Broken ${suffix}`));
 		const row = await db.incomingMeetingNote.findFirstOrThrow({
