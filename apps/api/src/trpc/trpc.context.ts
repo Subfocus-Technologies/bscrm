@@ -10,7 +10,10 @@ export async function createBaseTrpcContext(
 ): Promise<BaseTrpcContext> {
 	const session = req
 		? await auth.api
-				.getSession({ headers: fromNodeHeaders(req.headers) })
+				.getSession({
+					headers: fromNodeHeaders(req.headers),
+					query: { disableCookieCache: true },
+				})
 				.catch(() => null)
 		: null;
 	return { req, session };

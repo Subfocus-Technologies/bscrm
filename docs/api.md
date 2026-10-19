@@ -54,6 +54,10 @@ here, what do we sell.
   `session.create.before` check (`signInAccess` in `@crm/auth`). Records they made
   stay. Nobody removes themselves, and the last owner cannot be removed. Adding the
   address again clears the removal.
+- **The API never trusts the session cookie cache.** `createBaseTrpcContext` calls
+  `getSession` with `disableCookieCache`, so a deleted session stops every API
+  call at once instead of up to five minutes later. It costs one indexed session
+  read per request.
 - **First account is owner**, and the hook enrols pre-existing users, oldest first.
 - **Permissions come from `@crm/auth`** — `canRenameWorkspace`, `canChangeRole`,
   `canConfigureSso`, `canManageCurrency` — enforced by the service *and* used to
