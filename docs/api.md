@@ -43,9 +43,17 @@ here, what do we sell.
 
 - **The id is a constant, never a parameter.** A function taking an `organizationId`
   has turned the plugin into tenancy plumbing.
-- **Signing in is the join; no invite flow.** `ensureWorkspaceMembership` runs in
+- **Signing in is the join.** `ensureWorkspaceMembership` runs in
   `databaseHooks.session.create.before` and **degrades, never throws** — a throw fails
   the session create and locks everyone out. The plugin's `invitation` table is unused.
+- **Owners and admins add and remove people (`workspace.addMember`,
+  `cancelInvite`, `removeMember`).** Adding writes a `WorkspaceAccess` row: that
+  address may sign in even outside `ALLOWED_SIGN_IN`, and joins with the invited
+  role. No email is sent. Removing deletes the member, their sessions, API keys and
+  mailbox sync, and writes a `WorkspaceRemoval` row, which `user.create.before` and
+  `session.create.before` check (`signInAccess` in `@crm/auth`). Records they made
+  stay. Nobody removes themselves, and the last owner cannot be removed. Adding the
+  address again clears the removal.
 - **First account is owner**, and the hook enrols pre-existing users, oldest first.
 - **Permissions come from `@crm/auth`** — `canRenameWorkspace`, `canChangeRole`,
   `canConfigureSso`, `canManageCurrency` — enforced by the service *and* used to

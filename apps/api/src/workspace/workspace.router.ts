@@ -11,9 +11,17 @@ import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
+import { MembersAccessService } from "./members-access.service";
 import {
+	addMemberInput,
+	cancelInviteInput,
+	cancelInviteOutput,
+	inviteListOutput,
+	inviteOutput,
 	memberListInput,
 	memberListOutput,
+	removeMemberInput,
+	removeMemberOutput,
 	setMemberRoleInput,
 	updateWorkspaceInput,
 	workspaceMemberOutput,
@@ -26,6 +34,8 @@ import { WorkspaceService } from "./workspace.service";
 export class WorkspaceRouter {
 	constructor(
 		@Inject(WorkspaceService) private readonly workspace: WorkspaceService,
+		@Inject(MembersAccessService)
+		private readonly access: MembersAccessService,
 	) {}
 
 	@Query({
@@ -72,5 +82,49 @@ export class WorkspaceRouter {
 		@Input() input: z.infer<typeof setMemberRoleInput>,
 	) {
 		return this.workspace.setMemberRole(ctx.user.id, input);
+	}
+
+	@Query({
+		output: inviteListOutput,
+		meta: restMeta("GET", "/workspace/invites", ["Workspace"]),
+	})
+	async invites() {
+		return this.access.invites();
+	}
+
+	@Mutation({
+		input: addMemberInput,
+		output: inviteOutput,
+		meta: restMeta("POST", "/workspace/invites", ["Workspace"]),
+	})
+	async addMember(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof addMemberInput>,
+	) {
+		return this.access.addMember(ctx.user.id, input);
+	}
+
+	@Mutation({
+		input: cancelInviteInput,
+		output: cancelInviteOutput,
+		meta: restMeta("DELETE", "/workspace/invites/{email}", ["Workspace"]),
+	})
+	async cancelInvite(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input("email") email: string,
+	) {
+		return this.access.cancelInvite(ctx.user.id, email);
+	}
+
+	@Mutation({
+		input: removeMemberInput,
+		output: removeMemberOutput,
+		meta: restMeta("DELETE", "/workspace/members/{memberId}", ["Workspace"]),
+	})
+	async removeMember(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input("memberId") memberId: string,
+	) {
+		return this.access.removeMember(ctx.user.id, memberId);
 	}
 }

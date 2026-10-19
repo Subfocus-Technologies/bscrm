@@ -1,5 +1,6 @@
 import { type Db, db } from "@crm/db";
 import { WORKSPACE_ID, workspaceSlug } from "@crm/db/workspace";
+import { invitedRoleOf } from "./access";
 
 export { WORKSPACE_ID };
 
@@ -93,7 +94,7 @@ export async function ensureWorkspaceMembership(
 					id: crypto.randomUUID(),
 					organizationId: workspace.id,
 					userId,
-					role: "member",
+					role: await invitedRoleOf(userId),
 					createdAt: new Date(),
 				},
 				update: {},

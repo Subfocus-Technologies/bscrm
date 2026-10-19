@@ -12,6 +12,7 @@ import {
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { MembersAccess } from "./members-access";
 import { membersSearchParams } from "./members-search-params";
 import { MembersTable } from "./members-table";
 
@@ -28,7 +29,8 @@ export default function MembersSettingsPage({
 				<PageShellHeading>
 					<PageShellTitle>Members</PageShellTitle>
 					<PageShellDescription>
-						Everyone who has access to your CRM.
+						Everyone who has access to your CRM. Owners and admins can add and
+						remove people.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
@@ -54,6 +56,7 @@ async function Members({
 
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
+		queryClient.prefetchQuery(trpc.workspace.invites.queryOptions()),
 		queryClient.prefetchQuery(
 			trpc.workspace.members.queryOptions(membersSearchParams.toInput(values)),
 		),
@@ -61,7 +64,10 @@ async function Members({
 
 	return (
 		<HydrateClient>
-			<MembersTable />
+			<div className="flex min-h-0 flex-1 flex-col gap-4">
+				<MembersAccess />
+				<MembersTable />
+			</div>
 		</HydrateClient>
 	);
 }

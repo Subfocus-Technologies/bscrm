@@ -7,6 +7,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { organization } from "better-auth/plugins/organization";
+import { isRemovedUser, REMOVED_MESSAGE, signInAccess } from "./access";
 import { API_KEY_EXPIRATION, API_KEY_HEADER, API_KEY_PREFIX } from "./api-keys";
 import { AUTH_COOKIE_PREFIX } from "./cookies";
 import { env } from "./env";
@@ -259,14 +260,20 @@ export const auth = betterAuth({
 		user: {
 			create: {
 				before: async (user) => {
-					if (!hasSignInAllowList()) {
+					const access = await signInAccess(user.email);
+
+					if (access.removed) {
+						throw new APIError("FORBIDDEN", { message: REMOVED_MESSAGE });
+					}
+
+					if (!hasSignInAllowList() && !access.invited) {
 						throw new APIError("FORBIDDEN", {
 							message:
 								'No one can sign in yet: set ALLOWED_SIGN_IN in .env to your email domain (for example ALLOWED_SIGN_IN="acme.com") and restart.',
 						});
 					}
 
-					if (!isWorkspaceEmail(user.email)) {
+					if (!isWorkspaceEmail(user.email) && !access.invited) {
 						const domain = primaryWorkspaceDomain();
 						throw new APIError("FORBIDDEN", {
 							message: domain
@@ -283,6 +290,10 @@ export const auth = betterAuth({
 		session: {
 			create: {
 				before: async (session) => {
+					if (await isRemovedUser(session.userId)) {
+						throw new APIError("FORBIDDEN", { message: REMOVED_MESSAGE });
+					}
+
 					const workspaceId = await ensureWorkspaceMembership(session.userId);
 
 					return {

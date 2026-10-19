@@ -1,4 +1,4 @@
-import { WORKSPACE_ROLES } from "@crm/auth";
+import { INVITABLE_ROLES, WORKSPACE_ROLES } from "@crm/auth";
 import { MAX_SLUG } from "@crm/db/workspace";
 import { z } from "zod";
 import { listInput } from "../trpc/list-input";
@@ -59,4 +59,33 @@ export const memberListOutput = z.object({
 	rows: z.array(workspaceMemberOutput),
 	total: z.number(),
 	facetCounts: z.record(z.string(), z.record(z.string(), z.number())),
+});
+
+export const addMemberInput = z.object({
+	email: z.email("That is not an email address."),
+	role: z.enum(INVITABLE_ROLES).default("member"),
+});
+
+export type AddMemberInput = z.infer<typeof addMemberInput>;
+
+export const inviteOutput = z.object({
+	email: z.string(),
+	role: z.enum(INVITABLE_ROLES),
+	invitedAt: z.string(),
+	invitedBy: z.string().nullable(),
+});
+
+export type WorkspaceInvite = z.infer<typeof inviteOutput>;
+
+export const inviteListOutput = z.array(inviteOutput);
+
+export const cancelInviteInput = z.object({ email: z.string() });
+
+export const cancelInviteOutput = z.object({ email: z.string() });
+
+export const removeMemberInput = z.object({ memberId: z.string() });
+
+export const removeMemberOutput = z.object({
+	memberId: z.string(),
+	email: z.string(),
 });

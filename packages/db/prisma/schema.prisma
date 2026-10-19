@@ -41,6 +41,8 @@ model User {
   contactBusinessAdds         ContactBusiness[]     @relation("ContactBusinessAdder")
   businessSuggestionDecisions BusinessSuggestion[]  @relation("BusinessSuggestionDecider")
   createdBusinessRules        BusinessRule[]        @relation("BusinessRuleCreator")
+  workspaceInvites            WorkspaceAccess[]     @relation("WorkspaceAccessInviter")
+  workspaceRemovals           WorkspaceRemoval[]    @relation("WorkspaceRemover")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -1741,4 +1743,23 @@ model Apikey {
   @@index([configId])
   @@index([key])
   @@map("apikey")
+}
+
+model WorkspaceAccess {
+  email       String   @id
+  role        String   @default("member")
+  invitedById String?
+  invitedBy   User?    @relation("WorkspaceAccessInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@map("workspaceAccess")
+}
+
+model WorkspaceRemoval {
+  email       String   @id
+  removedById String?
+  removedBy   User?    @relation("WorkspaceRemover", fields: [removedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@map("workspaceRemoval")
 }

@@ -11,11 +11,13 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
 import { Icon } from "@crm/ui/components/icon";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ListSearch } from "@/components/data-table/list-search";
 import { useTableQuery } from "@/components/data-table/use-table-query";
@@ -23,6 +25,7 @@ import { LocalRelativeTime } from "@/components/local-date-time";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { type RemovableMember, RemoveMemberDialog } from "./members-access";
 import { membersSearchParams } from "./members-search-params";
 
 const ROLE_LABEL = {
@@ -38,6 +41,7 @@ type MemberRow = RouterOutputs["workspace"]["members"]["rows"][number];
 function columns(
 	canChangeRoles: boolean,
 	onChangeRole: (member: MemberRow, role: Role) => void,
+	onRemove: (member: MemberRow) => void,
 	pending: boolean,
 ): DataTableColumn<MemberRow>[] {
 	return [
@@ -108,7 +112,7 @@ function columns(
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="icon" disabled={pending}>
 								<Icon icon={OverflowMenuHorizontal} />
-								<span className="sr-only">Change {row.name}'s role</span>
+								<span className="sr-only">Manage {row.name}</span>
 							</Button>
 						</DropdownMenuTrigger>
 
@@ -125,6 +129,17 @@ function columns(
 									{ROLE_LABEL[role]}
 								</DropdownMenuItem>
 							))}
+							{row.isViewer ? null : (
+								<>
+									<DropdownMenuSeparator />
+									<DropdownMenuItem
+										variant="destructive"
+										onSelect={() => onRemove(row)}
+									>
+										Remove from the CRM
+									</DropdownMenuItem>
+								</>
+							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				) : null,
@@ -153,6 +168,7 @@ export function MembersTable() {
 		}),
 	);
 
+	const [removing, setRemoving] = useState<RemovableMember | null>(null);
 	const facetCounts = members.data?.facetCounts;
 
 	const facets: DataTableFacet[] = [
@@ -168,21 +184,25 @@ export function MembersTable() {
 	];
 
 	return (
-		<DataTable
-			query={query}
-			search={<ListSearch placeholder="Search by name or email…" />}
-			columns={columns(
-				workspace.data?.canChangeRoles ?? false,
-				(member, role) => setRole.mutate({ memberId: member.id, role }),
-				setRole.isPending,
-			)}
-			rows={members.data?.rows ?? []}
-			total={members.data?.total ?? 0}
-			facetCounts={facetCounts}
-			facets={facets}
-			getRowId={(row) => row.id}
-			loading={members.isFetching}
-			empty="Nobody matches this view."
-		/>
+		<>
+			<DataTable
+				query={query}
+				search={<ListSearch placeholder="Search by name or email…" />}
+				columns={columns(
+					workspace.data?.canChangeRoles ?? false,
+					(member, role) => setRole.mutate({ memberId: member.id, role }),
+					(member) => setRemoving(member),
+					setRole.isPending,
+				)}
+				rows={members.data?.rows ?? []}
+				total={members.data?.total ?? 0}
+				facetCounts={facetCounts}
+				facets={facets}
+				getRowId={(row) => row.id}
+				loading={members.isFetching}
+				empty="Nobody matches this view."
+			/>
+			<RemoveMemberDialog member={removing} onClose={() => setRemoving(null)} />
+		</>
 	);
 }
