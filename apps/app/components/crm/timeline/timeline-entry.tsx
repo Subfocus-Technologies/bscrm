@@ -4,6 +4,7 @@ import { DealStage } from "@crm/db/enums";
 import { Checkbox } from "@crm/ui/components/checkbox";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { cn } from "@crm/ui/lib/utils";
+import { meetingNotesMeta } from "@crm/validation/meeting-notes";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -15,8 +16,10 @@ import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { ActivityIcon } from "./activity-icon";
+import { CollapsibleNotes } from "./collapsible-notes";
 import { EmailThreadEntry } from "./email-thread-entry";
 import { MeetingEntry } from "./meeting-entry";
+import { MeetingFollowUps } from "./meeting-follow-ups";
 import type { TimelineAnchor } from "./timeline";
 
 export type TimelineEntryData =
@@ -68,6 +71,7 @@ export function TimelineEntry({
 	const when = entry.occurredAt ?? entry.createdAt;
 
 	const synced = entry.meta?.synced === true;
+	const pastedNotes = meetingNotesMeta.parse(entry.meta) !== null;
 	const author = synced
 		? entry.emailThread
 			? "via Gmail"
@@ -120,7 +124,9 @@ export function TimelineEntry({
 							</p>
 						) : null}
 
-						{entry.body ? (
+						{entry.body && pastedNotes ? (
+							<CollapsibleNotes body={entry.body} />
+						) : entry.body ? (
 							<p
 								className={cn(
 									"whitespace-pre-wrap text-pretty wrap-anywhere",
@@ -156,6 +162,8 @@ export function TimelineEntry({
 						conferenceUrl={entry.calendarEvent.conferenceUrl}
 					/>
 				) : null}
+
+				{pastedNotes ? <MeetingFollowUps activityId={entry.id} /> : null}
 
 				{entry.emailThread ? (
 					<EmailThreadEntry

@@ -210,6 +210,39 @@ one of our businesses. `lib/business-filing.ts` holds every rule; the tools
 - **Agent and rule filings write a timeline entry** (`ENRICHMENT`, `meta.filing`),
   authored the same way as other automated entries.
 
+## Meeting notes
+
+`meeting-notes` is a research-lane task that reads notes pasted from Gemini,
+Cluely or any note taker, and proposes to-dos and next steps.
+`lib/meeting-notes.ts` holds every rule; the tool `propose_follow_ups` is thin.
+
+- **Queued by the paste.** `meetingNotes.import` writes a `MEETING` activity with
+  `meta.meetingNotes`, then `AgentTriggerService.meetingNotesImported` queues the
+  task with `AgentTask.subject` set to the activity id. `meetingNotes.reread`
+  queues it again.
+- **Every item quotes the notes.** The tool drops an item whose `quote` is not
+  found in the notes, and a due date outside a plausible window. The model cannot
+  invent work.
+- **Nothing is a task until a person says so.** Items are `MeetingFollowUp` rows
+  in `PROPOSED`. *Add as task* writes a `TASK` activity and links it; *Dismiss*
+  marks the row `DISMISSED`. A re-read replaces only the rows still `PROPOSED`,
+  so it can propose a dismissed item again.
+- **Meetings come from everyone's calendars.** `meetings.upcoming` lists synced
+  `CalendarEvent` rows with a CRM contact or company, from
+  `MEETING_NOTES.upcoming.daysBack` days ago to `daysAhead` days ahead.
+  *Prepare me* queues the existing `meeting-prep` task for the contact. *Add
+  notes* imports notes with `meta.calendarEventId`, which links them to the
+  meeting.
+- **Gemini notes arrive from Gmail by themselves.** After each Gmail sync,
+  `GeminiNotesCollector` (`apps/api/src/google`) searches that person's mailbox
+  for mail from `MEETING_NOTES.inbox.geminiSender` and stores each email as an
+  `IncomingMeetingNote`. When the note's title matches a calendar meeting with
+  a CRM contact or company, `IncomingNotesService` files it on that record at
+  once, through the same `meetingNotes.import` path, so the agent reads it.
+  The rest wait on the *Meeting notes* page until a person files or ignores
+  them. A second copy of the same meeting (same Google Doc or same calendar
+  event) from another mailbox is stored as `DUPLICATE` and never shown.
+
 ## Evidence, not confidence
 
 **No tool accepts a confidence, a score, or a `sourceUrl` offered as proof.** Tools

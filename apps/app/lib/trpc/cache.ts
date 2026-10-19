@@ -30,6 +30,7 @@ export type CrmCache = {
 	savedViews(entity?: RecordKind, options?: Options): Promise<void>;
 	businesses(options?: Options): Promise<void>;
 	businessRecords(kind: RecordKind, options?: Options): Promise<void>;
+	meetingNotes(options?: Options): Promise<void>;
 	removed(record: RemovedRecord): Promise<void>;
 	removedMany(records: RemovedRecords): Promise<void>;
 	conversationRemoved(id: string): Promise<void>;
@@ -177,6 +178,17 @@ export function useCrmCache(): CrmCache {
 					trpc.businesses.filingLimit.queryKey(),
 				],
 				[...listKeys(), trpc.dashboard.summary.queryKey()],
+				options,
+			),
+
+		meetingNotes: (options) =>
+			run(
+				[
+					trpc.meetingNotes.followUps.queryKey(),
+					trpc.meetingNotes.inbox.queryKey(),
+					trpc.meetings.upcoming.queryKey(),
+				],
+				[...activityKeys(), trpc.dashboard.summary.queryKey()],
 				options,
 			),
 

@@ -1,6 +1,7 @@
 import { EnrichmentStatus } from "@crm/db";
 import { crmEventTask } from "@crm/validation/agent-events";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
+import { meetingNotesPayload } from "@crm/validation/meeting-notes";
 import { APP_AUTH, type AppAuth } from "./app-auth";
 import { brandOutcome, runBrand } from "./brand";
 import { preflightFiling, queueFilingForEvent } from "./business-filing";
@@ -266,6 +267,11 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 		if (parsed.success) records.fieldKeys = parsed.data.keys.join(",");
 	}
 
+	if (task.kind === "meeting-notes") {
+		const parsed = meetingNotesPayload.safeParse(task.payload);
+		if (parsed.success) records.activityId = parsed.data.activityId;
+	}
+
 	return {
 		...base,
 		attributes: {
@@ -431,6 +437,8 @@ function work(
 			return "This company's brand, industry, location and links are filled in separately and may already be there. Read the account, fill anything still missing, and write a brief if there is something worth saying.";
 		case "workspace-profile":
 			return "Write the profile of the company you work for, so that every other session knows who we are. Read our own site and keep it short.";
+		case "meeting-notes":
+			return "Turn the meeting notes in your instructions into follow-ups. Read the record's history only if a name or a commitment is unclear, then call propose_follow_ups once with every to-do and next step.";
 		case "business-filing":
 			return "Decide which of our businesses this record belongs to. Read its history first, then call file_into_business once per business it belongs to, citing the emails or meetings that show it. If nothing points anywhere, file nothing and say so.";
 		case "field-backfill": {

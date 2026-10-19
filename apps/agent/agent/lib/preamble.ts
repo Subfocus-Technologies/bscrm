@@ -11,6 +11,7 @@ import {
 	recentDecisions,
 } from "./business-filing-learning";
 import { capabilitiesMarkdown } from "./capabilities";
+import { meetingNotesMarkdown } from "./meeting-notes";
 import { identity, usMarkdown, type WorkspaceIdentity } from "./workspace";
 
 export type Opened = {
@@ -20,6 +21,7 @@ export type Opened = {
 	budget?: number | null;
 	/** Set only for a `field-backfill` task — the custom field key(s) still blank on this record. */
 	fieldKeys?: string[] | null;
+	activityId?: string | null;
 };
 
 export type Preamble = {
@@ -37,6 +39,13 @@ export async function sessionPreamble(
 ): Promise<Preamble> {
 	if (opened.kind === "workspace-profile") return workspacePreamble();
 	const preamble = await recordPreamble(record, opened);
+
+	if (opened.kind === "meeting-notes" && opened.activityId) {
+		const notes = await meetingNotesMarkdown(opened.activityId);
+		return notes
+			? { ...preamble, markdown: `${notes}\n\n${preamble.markdown}` }
+			: preamble;
+	}
 
 	if (opened.kind !== "business-filing") return preamble;
 

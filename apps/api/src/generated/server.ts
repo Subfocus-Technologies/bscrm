@@ -27,6 +27,8 @@ import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
 import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput, fieldEntityInput, fieldFiltersOutput, fieldIdInput, fieldCoverageOutput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput, fieldReorderOutput, fieldDeleteOutput, fieldBackfillOutput } from "../fields/fields.contracts";
 import { googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
 import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
+import { meetingNotesImportInput, meetingNotesImportOutput, followUpsInput, followUpsOutput, followUpDecideInput, followUpDecideOutput, rereadOutput, incomingNotesInput, incomingNotesOutput, incomingNoteFileInput, incomingNoteFileOutput, incomingNoteIdInput, incomingNoteStatusOutput } from "../meeting-notes/meeting-notes.contracts";
+import { upcomingMeetingsInput, upcomingMeetingsOutput, prepareMeetingInput, prepareMeetingOutput } from "../meetings/meetings.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
 import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
@@ -630,6 +632,50 @@ const appRouter = t.router({
       .input(calendarEventInput)
       .output(calendarEventOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  meetingNotes: t.router({
+    import: publicProcedure
+      .input(meetingNotesImportInput)
+      .output(meetingNotesImportOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    followUps: publicProcedure
+      .input(followUpsInput)
+      .output(followUpsOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    decide: publicProcedure
+      .input(followUpDecideInput)
+      .output(followUpDecideOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    reread: publicProcedure
+      .input(followUpsInput)
+      .output(rereadOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    inbox: publicProcedure
+      .input(incomingNotesInput)
+      .output(incomingNotesOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    file: publicProcedure
+      .input(incomingNoteFileInput)
+      .output(incomingNoteFileOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    ignore: publicProcedure
+      .input(incomingNoteIdInput)
+      .output(incomingNoteStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    restore: publicProcedure
+      .input(incomingNoteIdInput)
+      .output(incomingNoteStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  meetings: t.router({
+    upcoming: publicProcedure
+      .input(upcomingMeetingsInput)
+      .output(upcomingMeetingsOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    prepare: publicProcedure
+      .input(prepareMeetingInput)
+      .output(prepareMeetingOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   microsoft: t.router({
     status: publicProcedure

@@ -67,6 +67,16 @@ export class GmailClient {
 		});
 	}
 
+	async searchMessages(
+		accessToken: string,
+		options: { query: string; maxResults: number },
+	): Promise<MailboxResult<MessageList>> {
+		return this.api.get<MessageList>(`${BASE}/messages`, accessToken, {
+			q: options.query,
+			maxResults: options.maxResults,
+		});
+	}
+
 	async listHistory(
 		accessToken: string,
 		options: { startHistoryId: string; pageToken?: string },

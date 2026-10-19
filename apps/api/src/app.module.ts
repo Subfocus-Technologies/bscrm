@@ -26,6 +26,8 @@ import { HealthModule } from "./health/health.module";
 import { LoggingModule } from "./logging/logging.module";
 import { logAuthRoute } from "./logging/request-logger.middleware";
 import { MailboxModule } from "./mailbox/mailbox.module";
+import { MeetingNotesModule } from "./meeting-notes/meeting-notes.module";
+import { MeetingsModule } from "./meetings/meetings.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
 import { SavedViewsModule } from "./saved-views/saved-views.module";
 import { SearchModule } from "./search/search.module";
@@ -81,6 +83,8 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		ArchiveModule,
 		SavedViewsModule,
 		BusinessesModule,
+		MeetingNotesModule,
+		MeetingsModule,
 	],
 })
 export class AppModule {}

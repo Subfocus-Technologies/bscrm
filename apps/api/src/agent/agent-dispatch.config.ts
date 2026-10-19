@@ -12,4 +12,5 @@ export const AGENT_DISPATCH = {
 	},
 	fieldBackfill: { concurrency: 8 },
 	businessFiling: { concurrency: 8, budget: 1 },
+	meetingNotes: { budget: 2 },
 } as const;

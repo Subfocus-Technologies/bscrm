@@ -17,6 +17,7 @@ import {
 	type IncomingMessage,
 	ThreadWriterService,
 } from "../mailbox/thread-writer.service";
+import { GeminiNotesCollector } from "./gemini-notes.collector";
 import { GmailClient, type GmailMessage } from "./gmail.client";
 import {
 	type GmailHeader,
@@ -46,6 +47,7 @@ export class GmailSyncService {
 		private readonly tokens: MailboxTokenService,
 		private readonly state: SyncStateService,
 		private readonly threads: ThreadWriterService,
+		private readonly geminiNotes: GeminiNotesCollector,
 	) {}
 
 	async sync(row: MailboxSync): Promise<GmailSyncOutcome> {
@@ -88,11 +90,29 @@ export class GmailSyncService {
 			};
 		}
 
-		if (!row.cursor) {
-			return this.start(row, profile.data.historyId ?? null);
+		const outcome = row.cursor
+			? await this.incremental(row, token.accessToken, mailbox, row.cursor)
+			: await this.start(row, profile.data.historyId ?? null);
+
+		if (outcome.status === "synced") {
+			await this.collectGeminiNotes(row.userId, token.accessToken);
 		}
 
-		return this.incremental(row, token.accessToken, mailbox, row.cursor);
+		return outcome;
+	}
+
+	private async collectGeminiNotes(
+		userId: string,
+		accessToken: string,
+	): Promise<void> {
+		try {
+			await this.geminiNotes.collect(userId, accessToken);
+		} catch (error) {
+			this.logger.error(
+				{ message: "Collecting Gemini notes threw", userId },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
 	}
 
 	private async start(

@@ -199,6 +199,13 @@ Two rules follow for the serverless build:
   mailbox-wide delta, so the Outlook cursor is the last `receivedDateTime` seen,
   re-read with a one-second overlap; `rfcMessageId` is unique, so the overlap costs a
   duplicate fetch and never a duplicate row.
+- **Gmail also collects Gemini meeting notes.** `GmailSyncService` calls
+  `GeminiNotesCollector` after every successful sync. It searches, not the
+  history cursor, so the first run also picks up the last
+  `MEETING_NOTES.inbox.backfillDays` days. It stores at most `fetchPerSync`
+  emails per run, and a failure there never fails the mail sync. Matching a
+  note to a calendar meeting is a title and time comparison, not a decision
+  about a person.
 - **Microsoft has no token-revocation endpoint.** `revoke` clears the columns and the
   UI says the consent itself is removed in the user's Microsoft account. Google's still
   posts to `oauth2.googleapis.com/revoke` and refuses to clear if that fails.

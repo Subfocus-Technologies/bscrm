@@ -57,9 +57,15 @@ async function Summary({
 	]);
 
 	const queryClient = getServerQueryClient();
-	await queryClient.prefetchQuery(
-		getServerTrpc().dashboard.summary.queryOptions({ scope, business }),
-	);
+	const trpc = getServerTrpc();
+	await Promise.all([
+		queryClient.prefetchQuery(
+			trpc.dashboard.summary.queryOptions({ scope, business }),
+		),
+		queryClient.prefetchQuery(
+			trpc.meetings.upcoming.queryOptions({ business }),
+		),
+	]);
 
 	return (
 		<HydrateClient>

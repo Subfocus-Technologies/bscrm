@@ -8,7 +8,13 @@ import { dealsSearchParams } from "@/app/(app)/[slug]/deals/deals-search-params"
 import { useBusinessFocus } from "@/lib/business-focus";
 import { useTRPC } from "@/lib/trpc/client";
 
-export type Section = "/" | "/companies" | "/contacts" | "/deals" | "/settings";
+export type Section =
+	| "/"
+	| "/companies"
+	| "/contacts"
+	| "/deals"
+	| "/meeting-notes"
+	| "/settings";
 
 export function usePrefetchSection(): (section: string) => void {
 	const trpc = useTRPC();
@@ -45,6 +51,11 @@ export function usePrefetchSection(): (section: string) => void {
 							...dealsSearchParams.defaultInput(),
 							business,
 						}),
+					);
+					return;
+				case "/meeting-notes":
+					void queryClient.prefetchQuery(
+						trpc.meetingNotes.inbox.queryOptions({ view: "NEW", page: 1 }),
 					);
 					return;
 				default:

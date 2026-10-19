@@ -44,6 +44,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { overviewParsers } from "./overview-search-params";
 import { SalesDashboard } from "./sales-dashboard";
+import { UpcomingMeetings } from "./upcoming-meetings";
 
 const CELL = "px-3 py-2.5 align-middle";
 const OPEN_COLUMNS: SimpleTableColumn[] = [
@@ -132,6 +133,8 @@ export function DashboardSummary() {
 	return (
 		<div className="flex flex-col gap-6">
 			<SalesDashboard summary={summary} />
+
+			<UpcomingMeetings />
 
 			<div className="grid gap-6 @3xl/page-content:grid-cols-2">
 				<Card className="min-w-0">

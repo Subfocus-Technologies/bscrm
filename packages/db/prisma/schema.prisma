@@ -41,7 +41,10 @@ model User {
   contactBusinessAdds         ContactBusiness[]     @relation("ContactBusinessAdder")
   businessSuggestionDecisions BusinessSuggestion[]  @relation("BusinessSuggestionDecider")
   createdBusinessRules        BusinessRule[]        @relation("BusinessRuleCreator")
+  followUpDecisions           MeetingFollowUp[]     @relation("FollowUpDecider")
   workspaceInvites            WorkspaceAccess[]     @relation("WorkspaceAccessInviter")
+  incomingMeetingNotes        IncomingMeetingNote[] @relation("IncomingMeetingNoteMailbox")
+  filedMeetingNotes           IncomingMeetingNote[] @relation("IncomingMeetingNoteFiler")
   workspaceRemovals           WorkspaceRemoval[]    @relation("WorkspaceRemover")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
@@ -1291,6 +1294,10 @@ model Activity {
   calendarEventId String?        @unique
   calendarEvent   CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
 
+  followUps           MeetingFollowUp[]    @relation("MeetingFollowUps")
+  createdFromFollowUp MeetingFollowUp?     @relation("FollowUpTask")
+  incomingMeetingNote IncomingMeetingNote?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1300,6 +1307,75 @@ model Activity {
   @@index([dueAt])
   @@index([createdById])
   @@map("activity")
+}
+
+enum MeetingFollowUpKind {
+  TODO
+  NEXT_STEP
+}
+
+enum MeetingFollowUpStatus {
+  PROPOSED
+  ACCEPTED
+  DISMISSED
+}
+
+model MeetingFollowUp {
+  id          String                @id @default(cuid())
+  activityId  String
+  activity    Activity              @relation("MeetingFollowUps", fields: [activityId], references: [id], onDelete: Cascade)
+  kind        MeetingFollowUpKind
+  title       String
+  detail      String?
+  owner       String?
+  dueAt       DateTime?
+  quote       String
+  position    Int
+  status      MeetingFollowUpStatus @default(PROPOSED)
+  taskId      String?               @unique
+  task        Activity?             @relation("FollowUpTask", fields: [taskId], references: [id], onDelete: SetNull)
+  decidedById String?
+  decidedBy   User?                 @relation("FollowUpDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt   DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([activityId, position])
+  @@map("meetingFollowUp")
+}
+
+enum IncomingMeetingNoteStatus {
+  NEW
+  FILED
+  IGNORED
+  DUPLICATE
+}
+
+model IncomingMeetingNote {
+  id              String                    @id @default(cuid())
+  gmailMessageId  String                    @unique
+  mailboxUserId   String
+  mailboxUser     User                      @relation("IncomingMeetingNoteMailbox", fields: [mailboxUserId], references: [id], onDelete: Cascade)
+  source          String
+  subject         String
+  title           String
+  body            String
+  docUrl          String?
+  heldAt          DateTime
+  calendarEventId String?
+  calendarEvent   CalendarEvent?            @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+  status          IncomingMeetingNoteStatus @default(NEW)
+  activityId      String?                   @unique
+  activity        Activity?                 @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  filedById       String?
+  filedBy         User?                     @relation("IncomingMeetingNoteFiler", fields: [filedById], references: [id], onDelete: SetNull)
+  filedAt         DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([status, heldAt])
+  @@index([docUrl])
+  @@map("incomingMeetingNote")
 }
 
 enum GoogleSyncStatus {
@@ -1410,8 +1486,9 @@ model CalendarEvent {
   syncedByUserId String?
   googleEventId  String?
 
-  attendees CalendarAttendee[]
-  activity  Activity?
+  attendees    CalendarAttendee[]
+  activity     Activity?
+  meetingNotes IncomingMeetingNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1419,6 +1496,7 @@ model CalendarEvent {
   @@unique([iCalUid, originalStartTime])
   @@index([companyId, startsAt])
   @@index([contactId, startsAt])
+  @@index([startsAt])
   @@map("calendarEvent")
 }
 

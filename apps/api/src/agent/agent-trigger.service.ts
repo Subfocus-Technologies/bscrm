@@ -356,6 +356,48 @@ export class AgentTriggerService {
 		return queued;
 	}
 
+	async meetingNotesImported(input: {
+		activityId: string;
+		contactId: string | null;
+		companyId: string | null;
+		dealId: string | null;
+	}): Promise<void> {
+		await this.db.agentTask.create({
+			data: {
+				contactId: input.contactId,
+				companyId: input.companyId,
+				dealId: input.dealId,
+				kind: "meeting-notes",
+				reason: "A person pasted meeting notes to turn into next steps",
+				priority: PRIORITY.meetingNotes,
+				budget: AGENT_DISPATCH.meetingNotes.budget,
+				dueAt: new Date(),
+				subject: input.activityId,
+				payload: {
+					activityId: input.activityId,
+				} satisfies Prisma.InputJsonValue,
+			},
+		});
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "meeting-notes",
+			activityId: input.activityId,
+		});
+
+		this.poke();
+	}
+
+	async meetingPrepRequested(contactId: string, when: Date): Promise<boolean> {
+		return this.enqueue({
+			contactId,
+			kind: "meeting-prep",
+			reason: `A person asked for prep before the meeting on ${when.toDateString()}`,
+			priority: PRIORITY.requested,
+			budget: 10,
+		});
+	}
+
 	async meetingSoon(contactId: string, when: Date): Promise<void> {
 		await this.enqueue({
 			contactId,
