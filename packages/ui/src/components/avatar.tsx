@@ -10,6 +10,9 @@ const AVATAR_TONES = [
 	"chart-3",
 	"chart-4",
 	"chart-5",
+	"chart-6",
+	"chart-7",
+	"chart-8",
 ] as const;
 
 type AvatarTone = "neutral" | (typeof AVATAR_TONES)[number];
@@ -33,7 +36,7 @@ function Avatar({
 			data-selected={selected}
 			className={cn(
 				"group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 data-[size=xs]:size-5 dark:after:mix-blend-lighten",
-				"data-[tone]:ring-2 data-[tone]:after:hidden data-[tone=neutral]:ring-muted-foreground/40 data-[tone=chart-1]:ring-chart-1 data-[tone=chart-2]:ring-chart-2 data-[tone=chart-3]:ring-chart-3 data-[tone=chart-4]:ring-chart-4 data-[tone=chart-5]:ring-chart-5 data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-background",
+				"data-[tone]:ring-2 data-[tone]:after:hidden data-[tone=neutral]:ring-muted-foreground/40 data-[tone=chart-1]:ring-chart-1 data-[tone=chart-2]:ring-chart-2 data-[tone=chart-3]:ring-chart-3 data-[tone=chart-4]:ring-chart-4 data-[tone=chart-5]:ring-chart-5 data-[tone=chart-6]:ring-chart-6 data-[tone=chart-7]:ring-chart-7 data-[tone=chart-8]:ring-chart-8 data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-background",
 				className,
 			)}
 			{...props}
