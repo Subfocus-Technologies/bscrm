@@ -115,4 +115,24 @@ describe("proposeFollowUps", () => {
 			{ status: "PROPOSED", kind: "NEXT_STEP" },
 		]);
 	});
+
+	it("does not suggest again what a person already dismissed", async () => {
+		await proposeFollowUps(activityId, [rentRoll]);
+		await db.meetingFollowUp.updateMany({
+			where: { activityId },
+			data: { status: "DISMISSED" },
+		});
+
+		const outcome = await proposeFollowUps(activityId, [rentRoll]);
+
+		expect(outcome).toEqual({
+			saved: 0,
+			dropped: [
+				{
+					title: rentRoll.title,
+					reason: "A person already added or dismissed this one.",
+				},
+			],
+		});
+	});
 });

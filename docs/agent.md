@@ -226,7 +226,8 @@ Cluely or any note taker, and proposes to-dos and next steps.
 - **Nothing is a task until a person says so.** Items are `MeetingFollowUp` rows
   in `PROPOSED`. *Add as task* writes a `TASK` activity and links it; *Dismiss*
   marks the row `DISMISSED`. A re-read replaces only the rows still `PROPOSED`,
-  so it can propose a dismissed item again.
+  and the tool drops an item whose title or quote matches one a person already
+  decided.
 - **Meetings come from everyone's calendars.** `meetings.upcoming` lists synced
   `CalendarEvent` rows with a CRM contact or company, from
   `MEETING_NOTES.upcoming.daysBack` days ago to `daysAhead` days ahead.

@@ -92,6 +92,13 @@ export async function proposeFollowUps(
 	}
 
 	const haystack = squash(notes.body);
+	const decided = await db.meetingFollowUp.findMany({
+		where: { activityId, status: { in: ["ACCEPTED", "DISMISSED"] } },
+		select: { title: true, quote: true },
+	});
+	const alreadyDecided = new Set(
+		decided.flatMap((item) => [squash(item.title), squash(item.quote)]),
+	);
 	const dropped: ProposeOutcome["dropped"] = [];
 	const kept: (MeetingFollowUpItem & { dueAt: Date | null })[] = [];
 
@@ -107,6 +114,17 @@ export async function proposeFollowUps(
 			dropped.push({
 				title: item.title,
 				reason: "Its quote is not in the notes, word for word.",
+			});
+			continue;
+		}
+
+		if (
+			alreadyDecided.has(squash(item.title)) ||
+			alreadyDecided.has(squash(item.quote))
+		) {
+			dropped.push({
+				title: item.title,
+				reason: "A person already added or dismissed this one.",
 			});
 			continue;
 		}
