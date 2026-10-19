@@ -4,7 +4,7 @@ export interface CurrencyMeta {
 	minorUnits: number;
 }
 
-export const DEFAULT_REPORTING_CURRENCY = "USD";
+export const DEFAULT_REPORTING_CURRENCY = "GBP";
 
 const CURRENCY_LIST: readonly CurrencyMeta[] = [
 	{ code: "USD", name: "US Dollar", minorUnits: 2 },

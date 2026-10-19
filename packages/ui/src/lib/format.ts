@@ -7,6 +7,7 @@ export function formatCount(
 }
 
 const WELL_FORMED_CURRENCY_CODE = /^[A-Za-z]{3}$/;
+const MONEY_LOCALE = "en-GB";
 const percentFormat = new Intl.NumberFormat("en-US", {
 	style: "percent",
 	maximumFractionDigits: 0,
@@ -15,7 +16,7 @@ const percentFormat = new Intl.NumberFormat("en-US", {
 function displayCurrencyCode(currency: string): string {
 	return WELL_FORMED_CURRENCY_CODE.test(currency)
 		? currency.toUpperCase()
-		: "USD";
+		: "GBP";
 }
 
 const currencyDigits = new Map<string, number>();
@@ -34,12 +35,12 @@ function fractionDigits(code: string): number {
 	return digits;
 }
 
-export function formatMoney(cents: number, currency = "usd"): string {
+export function formatMoney(cents: number, currency = "gbp"): string {
 	const code = displayCurrencyCode(currency);
 	const whole = cents % 100 === 0;
 	const digits = fractionDigits(code);
 
-	return new Intl.NumberFormat(undefined, {
+	return new Intl.NumberFormat(MONEY_LOCALE, {
 		style: "currency",
 		currency: code,
 		minimumFractionDigits: whole ? 0 : Math.min(2, digits),
@@ -47,13 +48,54 @@ export function formatMoney(cents: number, currency = "usd"): string {
 	}).format(cents / 100);
 }
 
-export function formatMoneyCompact(cents: number, currency = "usd"): string {
-	return new Intl.NumberFormat(undefined, {
+const COMPACT_STEPS = [
+	{ size: 1_000_000_000, suffix: "B" },
+	{ size: 1_000_000, suffix: "M" },
+	{ size: 1_000, suffix: "K" },
+] as const;
+
+function oneDecimal(value: number): number {
+	return Math.round(value * 10) / 10;
+}
+
+function compactStep(amount: number) {
+	const size = Math.abs(amount);
+	const index = COMPACT_STEPS.findIndex((step) => size >= step.size);
+	const step = COMPACT_STEPS[index];
+	const larger = COMPACT_STEPS[index - 1];
+
+	if (
+		step &&
+		larger &&
+		oneDecimal(size / step.size) >= larger.size / step.size
+	) {
+		return larger;
+	}
+
+	return step;
+}
+
+function moneyFormat(currency: string, decimals: number): Intl.NumberFormat {
+	return new Intl.NumberFormat(MONEY_LOCALE, {
 		style: "currency",
 		currency: displayCurrencyCode(currency),
-		notation: "compact",
-		maximumFractionDigits: cents % 100_000 === 0 ? 0 : 1,
-	}).format(cents / 100);
+		minimumFractionDigits: 0,
+		maximumFractionDigits: decimals,
+	});
+}
+
+export function formatMoneyCompact(cents: number, currency = "gbp"): string {
+	const amount = cents / 100;
+	const step = compactStep(amount);
+
+	if (!step) {
+		return moneyFormat(currency, cents % 100_000 === 0 ? 0 : 1).format(amount);
+	}
+
+	const scaled = oneDecimal(amount / step.size);
+	const decimals = Number.isInteger(scaled) ? 0 : 1;
+
+	return `${moneyFormat(currency, decimals).format(scaled)}${step.suffix}`;
 }
 
 export function formatPercent(rate: number): string {
