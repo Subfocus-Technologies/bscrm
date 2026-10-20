@@ -42,6 +42,8 @@ export const DISPATCH = {
 		retire: 100,
 	},
 
+	outcome: { rememberedMessages: 1000, maxLength: 500 },
+
 	sweep: {
 		timeoutMs: 4 * MINUTE_MS,
 		staleQueueMs: 5 * MINUTE_MS,

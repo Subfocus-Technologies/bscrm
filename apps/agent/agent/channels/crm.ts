@@ -85,6 +85,34 @@ export function taskFromToken(token: string | undefined): string | null {
 	return id.length > 0 ? id : null;
 }
 
+const lastTaskMessages = new Map<string, string>();
+
+export function noteTaskMessage(
+	token: string | undefined,
+	message: string | null | undefined,
+): void {
+	const taskId = taskFromToken(token);
+	const said = message?.trim();
+	if (!taskId || !said) return;
+
+	lastTaskMessages.delete(taskId);
+	lastTaskMessages.set(taskId, said.slice(0, DISPATCH.outcome.maxLength));
+	while (lastTaskMessages.size > DISPATCH.outcome.rememberedMessages) {
+		const oldest = lastTaskMessages.keys().next().value;
+		if (oldest === undefined) break;
+		lastTaskMessages.delete(oldest);
+	}
+}
+
+export function finalWords(token: string | undefined): string {
+	const taskId = taskFromToken(token);
+	if (!taskId) return "ran";
+
+	const said = lastTaskMessages.get(taskId);
+	lastTaskMessages.delete(taskId);
+	return said ?? "ran";
+}
+
 export async function closeTask(
 	token: string | undefined,
 	outcome: string,
@@ -249,6 +277,7 @@ export default defineChannel({
 		},
 
 		async "message.completed"(data, channel) {
+			noteTaskMessage(channel.continuationToken, data.message);
 			const conversationId = builderIdFromToken(channel.continuationToken);
 			if (!conversationId || !data.message?.trim()) return;
 
@@ -265,7 +294,13 @@ export default defineChannel({
 		},
 
 		async "session.waiting"(_data, channel) {
-			if (await closeTask(channel.continuationToken, "ran")) return;
+			if (
+				await closeTask(
+					channel.continuationToken,
+					finalWords(channel.continuationToken),
+				)
+			)
+				return;
 
 			const conversationId = builderIdFromToken(channel.continuationToken);
 			if (!conversationId) return;
@@ -307,7 +342,13 @@ export default defineChannel({
 		},
 
 		async "session.completed"(_data, channel) {
-			if (await closeTask(channel.continuationToken, "ran")) return;
+			if (
+				await closeTask(
+					channel.continuationToken,
+					finalWords(channel.continuationToken),
+				)
+			)
+				return;
 
 			const conversationId = builderIdFromToken(channel.continuationToken);
 			if (conversationId) {
