@@ -9,6 +9,7 @@ export const INVESTORS = {
 	evidence: { maxItems: 5, quoteMaxLength: 280 },
 	pageSize: 50,
 	meetingTarget: { default: 5, max: 50 },
+	scoring: { mustMissCap: 40 },
 } as const;
 
 export const INVESTOR_KINDS = [
@@ -82,6 +83,12 @@ export const fitReason = z.object({
 	met: z.boolean(),
 	note: z.string().trim().min(1).max(INVESTORS.evidence.quoteMaxLength),
 	sourceUrl: z.string().trim().url().nullable().default(null),
+	quote: z
+		.string()
+		.trim()
+		.max(INVESTORS.evidence.quoteMaxLength)
+		.nullable()
+		.default(null),
 });
 
 export type FitReason = z.infer<typeof fitReason>;
@@ -129,8 +136,15 @@ export function fitScore(
 	const earned = weighted
 		.filter((criterion) => met.has(criterion.id))
 		.reduce((sum, criterion) => sum + criterion.weight, 0);
+	const score = Math.round((earned / total) * 100);
+	const missesMust = criteria.some(
+		(criterion) => criterion.kind === "MUST" && !met.has(criterion.id),
+	);
 
-	return { score: Math.round((earned / total) * 100), ruledOut };
+	return {
+		score: missesMust ? Math.min(score, INVESTORS.scoring.mustMissCap) : score,
+		ruledOut,
+	};
 }
 
 export const investorTaskPayload = z.object({

@@ -20,6 +20,7 @@ function met(...ids: string[]) {
 		met: true,
 		note: "seen",
 		sourceUrl: "https://example.com",
+		quote: "We back proptech",
 	}));
 }
 
@@ -43,8 +44,19 @@ describe("the investor fit score", () => {
 	it("ignores verdicts that are not met", () => {
 		expect(
 			fitScore(criteria, [
-				{ criterionId: "sector", met: false, note: "no", sourceUrl: null },
+				{
+					criterionId: "sector",
+					met: false,
+					note: "no",
+					sourceUrl: null,
+					quote: null,
+				},
 			]).score,
 		).toBe(0);
+	});
+
+	it("caps the score when a must-have is missed", () => {
+		expect(fitScore(criteria, met("sector", "uk")).score).toBe(40);
+		expect(fitScore(criteria, met("stage")).score).toBe(20);
 	});
 });

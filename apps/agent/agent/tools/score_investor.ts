@@ -8,7 +8,7 @@ const text = z.string().trim().max(INVESTORS.text.shortMaxLength);
 const pounds = z.number().min(0).nullable().default(null);
 
 export default defineTool({
-	description: `Record how well an investor fits our raise, in an investor-research task. Give a verdict for every criterion id in the investor profile: met or not, a short note on why, and the URL you read for each one you mark as met. The tool works out the 0 to 100 fit score from the profile's weights; a met "rules them out" criterion makes it 0. You may also fill facts that are still blank, but only from what you read. Record an email only when the investor publishes it.`,
+	description: `Record how well an investor fits our raise, in an investor-research task. Give a verdict for every criterion id in the investor profile: met or not, a short note on why, and for each one you mark as met the URL you read and the exact words from it that show it. Be strict: a generalist fund does not meet a sector criterion. The tool works out the 0 to 100 fit score from the profile's weights; a met "rules them out" criterion makes it 0, and a missed must-have caps it. You may also fill facts that are still blank, but only from what you read. Record an email only when the investor publishes it.`,
 	inputSchema: z.object({
 		investorId: z
 			.string()
@@ -29,6 +29,13 @@ export default defineTool({
 					met: z.boolean(),
 					note: z.string().trim().min(1).max(INVESTORS.evidence.quoteMaxLength),
 					sourceUrl: z.string().trim().url().nullable().default(null),
+					quote: z
+						.string()
+						.trim()
+						.max(INVESTORS.evidence.quoteMaxLength)
+						.nullable()
+						.default(null)
+						.describe("The exact words from the source that show it."),
 				}),
 			)
 			.max(INVESTORS.profile.maxCriteria),

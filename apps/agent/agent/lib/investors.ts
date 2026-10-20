@@ -139,7 +139,11 @@ export async function investorPreamble(
 	].filter(Boolean);
 
 	return [
-		`**This is an investor-research task.** Research the investor below and score how well they fit our raise. Read their website and recent deals, and their LinkedIn when there is one. Then call \`score_investor\` once with a verdict for every criterion id in the profile, and a source URL for each criterion you mark as met. Fill in missing facts (type, website, LinkedIn, location, sectors, stages, cheque size, thesis) only from what you read. Record an email address only when the investor publishes it.`,
+		`**This is an investor-research task.** Research the investor below and score how well they fit our raise. Read their website and recent deals, and their LinkedIn when there is one. Then call \`score_investor\` once with a verdict for every criterion id in the profile. For each criterion you mark as met, give the URL you read and copy the exact words from it that show it.
+
+Be strict; a score that flatters everyone is useless. Mark a criterion met only when a source shows it for this investor specifically: a named portfolio company, a deal they did, or their own stated thesis or cheque size. A generalist fund that "backs great founders" or "invests in technology" does not meet a sector criterion; it needs a proptech, real estate or AI company in its portfolio or thesis. "Writes cheques at our stage" needs a pre-seed or seed deal in the last three years or a stated pre-seed cheque. When you are unsure, mark it not met and say what is missing. Missing a must-have caps the score at ${INVESTORS.scoring.mustMissCap}.
+
+Fill in missing facts (type, website, LinkedIn, location, sectors, stages, cheque size, thesis) only from what you read. Record an email address only when the investor publishes it.`,
 		`## The investor\n${facts.join("\n")}`,
 		fundraiseMarkdown(fundraise),
 	].join("\n\n");
@@ -210,11 +214,13 @@ export async function scoreInvestor(input: {
 	const ignored = input.reasons
 		.filter((reason) => !known.has(reason.criterionId))
 		.map((reason) => reason.criterionId);
-	const unsourced = reasons.filter((reason) => reason.met && !reason.sourceUrl);
+	const unsourced = reasons.filter(
+		(reason) => reason.met && (!reason.sourceUrl || !reason.quote),
+	);
 	if (unsourced.length > 0) {
 		return {
 			ok: false,
-			reason: `Give a source URL for every criterion you mark as met: ${unsourced.map((reason) => reason.criterionId).join(", ")}.`,
+			reason: `Give a source URL and the words from it for every criterion you mark as met: ${unsourced.map((reason) => reason.criterionId).join(", ")}.`,
 		};
 	}
 

@@ -138,18 +138,21 @@ describe("scoring an investor", () => {
 					met: true,
 					note: "Backs proptech",
 					sourceUrl: "https://seed.example/portfolio",
+					quote: "We back proptech founders",
 				},
 				{
 					criterionId: "uk",
 					met: false,
 					note: "Based in Berlin",
 					sourceUrl: null,
+					quote: null,
 				},
 				{
 					criterionId: "invented",
 					met: true,
 					note: "x",
 					sourceUrl: "https://x.example",
+					quote: "x",
 				},
 			],
 			facts: { location: "Berlin", website: "https://seed.example" },
@@ -190,13 +193,20 @@ describe("scoring an investor", () => {
 				investorId: investor.id,
 				summary: "Unsure.",
 				reasons: [
-					{ criterionId: "sector", met: true, note: "Maybe", sourceUrl: null },
+					{
+						criterionId: "sector",
+						met: true,
+						note: "Maybe",
+						sourceUrl: "https://maybe.example",
+						quote: null,
+					},
 				],
 				facts: {},
 			}),
 		).toEqual({
 			ok: false,
-			reason: "Give a source URL for every criterion you mark as met: sector.",
+			reason:
+				"Give a source URL and the words from it for every criterion you mark as met: sector.",
 		});
 	});
 });
