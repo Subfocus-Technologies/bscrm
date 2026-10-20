@@ -237,14 +237,17 @@ Cluely or any note taker, and proposes to-dos and next steps.
 - **Gemini notes arrive from Gmail by themselves.** After each Gmail sync,
   `GeminiNotesCollector` (`apps/api/src/google`) searches that person's mailbox
   for mail from `MEETING_NOTES.inbox.geminiSender` and stores each email as an
-  `IncomingMeetingNote`. When the note's title matches a calendar meeting with
-  a CRM contact or company, `IncomingNotesService` files it on that record at
-  once, through the same `meetingNotes.import` path, so the agent reads it.
-  The rest wait on the *Meeting notes* page until a person files or ignores
-  them. Gemini sends a copy to every invited guest, so a second copy of the
-  same meeting from another mailbox is stored as `DUPLICATE` and never shown:
-  same Google Doc, same calendar event, or the same title within
-  `duplicateWindowMinutes`. The doc link comes from the email's HTML part, and
+  `IncomingMeetingNote`. **A collected note is private to the person whose
+  mailbox it came from, and nothing files itself.** Every read and action in
+  `IncomingNotesService` is scoped to `mailboxUserId`, so another user sees no
+  list entry, no count and gets "not found" for its id. When the title matches
+  a calendar meeting, the inbox only suggests that meeting's contact or company.
+  The owner allows it with *Allow and file*, which goes through the same
+  `meetingNotes.import` path, so only then does it reach a shared record and
+  does the agent read it. Gemini sends a copy to every invited guest, so each
+  guest keeps their own copy. Within one mailbox a second email with the same
+  Google Doc or calendar event is stored as `DUPLICATE`. Filing refuses a
+  meeting someone has already filed. The doc link comes from the email's HTML part, and
   `geminiNoteBody` drops Google's header and footer.
 - **Notes are re-read when the reader improves.** Each row records the
   `parserVersion` that read it. A `NEW` row older than

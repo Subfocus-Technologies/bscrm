@@ -141,7 +141,9 @@ Do this once per computer, before the first push. Without it, the pre-push hook
 refuses every push.
 
 1. Install Bun, Node 24 and a Docker runtime (OrbStack on a Mac), and start Docker.
-2. `bun install`, then `cp .env.example .env` for local development values.
+2. `bun install`, then `cp .env.example .env` for local development values. Set
+   `BETTER_AUTH_SECRET` in `.env` (`openssl rand -base64 32`): the auth tests sign
+   cookies with it and fail when it is empty.
 3. `docker compose up -d` starts the local Postgres on port 5432. Then
    `bun --env-file=.env run db:test` creates the test database that `bun run test`
    needs. The script does not read `.env` by itself, so keep `--env-file`. When

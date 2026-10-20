@@ -49,7 +49,7 @@ const EMPTY = {
 	NEW: {
 		title: "Nothing to file",
 		description:
-			"Gemini notes arrive here from everyone's Gmail. Notes from a meeting with someone in the CRM go straight onto their record.",
+			"Gemini notes from your Gmail arrive here, and only you can see them. Nothing reaches a record until you file it.",
 	},
 	FILED: {
 		title: "No notes filed yet",
@@ -79,7 +79,11 @@ function isView(value: string): value is IncomingMeetingNoteView {
 function FileNote({ note }: { note: Note }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
-	const [record, setRecord] = useState<PickedRecord | null>(null);
+	const [record, setRecord] = useState<PickedRecord | null>(
+		note.suggested
+			? { kind: note.suggested.kind, id: note.suggested.id }
+			: null,
+	);
 
 	const file = useMutation(
 		trpc.meetingNotes.file.mutationOptions({
@@ -105,6 +109,7 @@ function FileNote({ note }: { note: Note }) {
 			<RecordPicker
 				value={record}
 				onValueChange={setRecord}
+				selectedLabel={note.suggested?.name}
 				disabled={busy}
 				className="w-full sm:w-72"
 			/>
@@ -121,7 +126,7 @@ function FileNote({ note }: { note: Note }) {
 				}
 			>
 				{file.isPending ? <Spinner /> : null}
-				File notes
+				Allow and file
 			</Button>
 			<Button
 				size="sm"

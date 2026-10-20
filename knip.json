@@ -22,7 +22,8 @@
 				"app/**/{page,layout,route,error,not-found,loading,template,default}.{ts,tsx}",
 				"test/**/*.spec.{ts,tsx}"
 			],
-			"project": ["**/*.{ts,tsx}"]
+			"project": ["**/*.{ts,tsx}"],
+			"ignoreDependencies": ["server-only"]
 		},
 		"packages/*": {
 			"entry": ["src/*.ts"],

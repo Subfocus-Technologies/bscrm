@@ -207,9 +207,10 @@ Two rules follow for the serverless build:
   `GeminiNotesCollector` after every successful sync. It searches, not the
   history cursor, so the first run also picks up the last
   `MEETING_NOTES.inbox.backfillDays` days. It stores at most `fetchPerSync`
-  emails per run, and a failure there never fails the mail sync. Matching a
-  note to a calendar meeting is a title and time comparison, not a decision
-  about a person.
+  emails per run, and a failure there never fails the mail sync. Collected
+  notes are private to their mailbox owner and are never filed automatically:
+  matching a note to a calendar meeting only suggests a record, and the owner
+  files it. See `docs/agent.md`.
 - **Investors are not contacts.** `investors.*` keeps the raise and its investor
   pipeline in their own tables, so the sales lists, business filing and
   enrichment never see them. Imports arrive as parsed rows from the browser

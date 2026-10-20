@@ -28,12 +28,14 @@ function decode(value: string): PickedRecord | null {
 export function RecordPicker({
 	value,
 	onValueChange,
+	selectedLabel,
 	placeholder = "Choose a contact or company",
 	disabled,
 	className,
 }: {
 	value: PickedRecord | null;
 	onValueChange: (value: PickedRecord | null) => void;
+	selectedLabel?: string;
 	placeholder?: string;
 	disabled?: boolean;
 	className?: string;
@@ -79,7 +81,13 @@ export function RecordPicker({
 				onValueChange(decode(next));
 			}}
 			options={options}
-			selectedOption={chosen?.value === current ? chosen : undefined}
+			selectedOption={
+				chosen?.value === current
+					? chosen
+					: current && selectedLabel
+						? { value: current, label: selectedLabel }
+						: undefined
+			}
 			disabled={disabled}
 			placeholder={placeholder}
 			searchPlaceholder="Search contacts and companies…"

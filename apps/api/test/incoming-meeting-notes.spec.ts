@@ -173,48 +173,43 @@ describe("cleaning a Gemini email", () => {
 });
 
 describe("the meeting notes inbox", () => {
-	it("files notes on the person from the matching meeting", async () => {
+	it("suggests the person from the matching meeting and waits to be filed", async () => {
 		const title = `Pilot review ${suffix}`;
 		const eventId = await meeting(title, true);
 
-		const status = await incoming.receive(note(title));
+		expect(await incoming.receive(note(title))).toBe("NEW");
 
-		expect(status).toBe("FILED");
 		const row = await db.incomingMeetingNote.findFirstOrThrow({
 			where: { mailboxUserId: userId },
-			select: { calendarEventId: true, activityId: true, filedById: true },
+			select: { calendarEventId: true, activityId: true },
 		});
-		expect(row.calendarEventId).toBe(eventId);
-		expect(row.filedById).toBeNull();
-		const activity = await db.activity.findUniqueOrThrow({
-			where: { id: row.activityId ?? "" },
-			select: { contactId: true, createdById: true, type: true, meta: true },
+		expect(row).toEqual({ calendarEventId: eventId, activityId: null });
+		const [item] = (await incoming.list({ view: "NEW", page: 1 }, userId))
+			.items;
+		expect(item?.suggested).toEqual({
+			kind: "contact",
+			id: contactId,
+			name: "Lena",
 		});
-		expect(activity).toEqual({
-			contactId,
-			createdById: userId,
-			type: "MEETING",
-			meta: { meetingNotes: true, source: "GEMINI", calendarEventId: eventId },
-		});
-		expect(read).toEqual([row.activityId ?? ""]);
-	});
-
-	it("keeps notes without a CRM meeting for a person to file", async () => {
-		await meeting(`Dentist ${suffix}`, false);
-
-		expect(await incoming.receive(note(`Dentist ${suffix}`))).toBe("NEW");
-		expect(await incoming.receive(note(`Team lunch ${suffix}`))).toBe("NEW");
-
-		const inbox = await incoming.list({ view: "NEW", page: 1 });
-		const mine = inbox.items.filter((item) => item.mailbox === "Sayu");
-		expect(mine.map((item) => item.title).sort()).toEqual([
-			`Dentist ${suffix}`,
-			`Team lunch ${suffix}`,
-		]);
 		expect(read).toEqual([]);
 	});
 
-	it("files a note under the company a person chooses, once", async () => {
+	it("shows each person only the notes from their own Gmail", async () => {
+		await incoming.receive(note(`Dentist ${suffix}`));
+		await incoming.receive(
+			note(`Board prep ${suffix}`, { mailboxUserId: otherUserId }),
+		);
+
+		const mine = await incoming.list({ view: "NEW", page: 1 }, userId);
+		const theirs = await incoming.list({ view: "NEW", page: 1 }, otherUserId);
+		expect(mine.items.map((item) => item.title)).toEqual([`Dentist ${suffix}`]);
+		expect(mine.counts.NEW).toBe(1);
+		expect(theirs.items.map((item) => item.title)).toEqual([
+			`Board prep ${suffix}`,
+		]);
+	});
+
+	it("files a note under the company its owner chooses, once", async () => {
 		await incoming.receive(note(`Intro ${suffix}`));
 		const row = await db.incomingMeetingNote.findFirstOrThrow({
 			where: { mailboxUserId: userId },
@@ -223,41 +218,63 @@ describe("the meeting notes inbox", () => {
 
 		const { activityId } = await incoming.file(
 			{ id: row.id, companyId },
-			otherUserId,
+			userId,
 		);
 
-		const filed = (await incoming.list({ view: "FILED", page: 1 })).items.find(
-			(item) => item.id === row.id,
-		);
+		const filed = (
+			await incoming.list({ view: "FILED", page: 1 }, userId)
+		).items.find((item) => item.id === row.id);
 		expect(filed?.record).toEqual({
 			kind: "company",
 			id: companyId,
 			name: `Inbox Co ${suffix}`,
 		});
-		expect(filed?.filedBy).toBe("Luke");
+		expect(filed?.filedBy).toBe("Sayu");
 		expect(filed?.activityId).toBe(activityId);
+		expect(read).toEqual([activityId]);
 		await expect(
-			incoming.file({ id: row.id, companyId }, otherUserId),
+			incoming.file({ id: row.id, companyId }, userId),
 		).rejects.toThrow("Someone already filed or changed these notes.");
 	});
 
-	it("files a note under the contact a person chooses", async () => {
+	it("files a note under the contact its owner chooses", async () => {
 		await incoming.receive(note(`Call ${suffix}`));
 		const row = await db.incomingMeetingNote.findFirstOrThrow({
 			where: { mailboxUserId: userId },
 			select: { id: true },
 		});
 
-		await incoming.file({ id: row.id, contactId }, otherUserId);
+		await incoming.file({ id: row.id, contactId }, userId);
 
-		const filed = (await incoming.list({ view: "FILED", page: 1 })).items.find(
-			(item) => item.id === row.id,
-		);
+		const filed = (
+			await incoming.list({ view: "FILED", page: 1 }, userId)
+		).items.find((item) => item.id === row.id);
 		expect(filed?.record).toEqual({
 			kind: "contact",
 			id: contactId,
 			name: "Lena",
 		});
+	});
+
+	it("does not let anyone file or ignore another person's notes", async () => {
+		await incoming.receive(note(`Private ${suffix}`));
+		const row = await db.incomingMeetingNote.findFirstOrThrow({
+			where: { mailboxUserId: userId },
+			select: { id: true },
+		});
+
+		await expect(
+			incoming.file({ id: row.id, companyId }, otherUserId),
+		).rejects.toThrow(`No meeting notes with id ${row.id}.`);
+		await expect(
+			incoming.setIgnored(row.id, true, otherUserId),
+		).rejects.toThrow(`No meeting notes with id ${row.id}.`);
+		const after = await db.incomingMeetingNote.findUniqueOrThrow({
+			where: { id: row.id },
+			select: { status: true, activityId: true },
+		});
+		expect(after).toEqual({ status: "NEW", activityId: null });
+		expect(read).toEqual([]);
 	});
 
 	it("puts a note back in the inbox when filing fails", async () => {
@@ -268,7 +285,7 @@ describe("the meeting notes inbox", () => {
 		});
 
 		await expect(
-			incoming.file({ id: row.id, companyId: "missing" }, otherUserId),
+			incoming.file({ id: row.id, companyId: "missing" }, userId),
 		).rejects.toThrow("No company with id missing.");
 		const after = await db.incomingMeetingNote.findUniqueOrThrow({
 			where: { id: row.id },
@@ -294,7 +311,7 @@ describe("the meeting notes inbox", () => {
 		});
 	});
 
-	it("keeps one copy when two people get notes for the same meeting", async () => {
+	it("gives each person their own copy of a shared meeting's notes", async () => {
 		const docUrl = `https://docs.google.com/document/d/${suffix}`;
 
 		expect(await incoming.receive(note(`Sync ${suffix}`, { docUrl }))).toBe(
@@ -304,31 +321,32 @@ describe("the meeting notes inbox", () => {
 			await incoming.receive(
 				note(`Sync ${suffix}`, { docUrl, mailboxUserId: otherUserId }),
 			),
-		).toBe("DUPLICATE");
+		).toBe("NEW");
+		expect(await incoming.receive(note(`Sync ${suffix}`, { docUrl }))).toBe(
+			"DUPLICATE",
+		);
 	});
 
-	it("keeps one copy when another mailbox gets the same meeting minutes apart", async () => {
-		const heldAt = new Date();
-
-		expect(await incoming.receive(note(`Standup ${suffix}`, { heldAt }))).toBe(
-			"NEW",
+	it("files a shared meeting's notes on a record only once", async () => {
+		const docUrl = `https://docs.google.com/document/d/once-${suffix}`;
+		await incoming.receive(note(`Kick-off ${suffix}`, { docUrl }));
+		await incoming.receive(
+			note(`Kick-off ${suffix}`, { docUrl, mailboxUserId: otherUserId }),
 		);
-		expect(
-			await incoming.receive(
-				note(`standup ${suffix}`, {
-					heldAt: new Date(heldAt.getTime() + 2 * 60 * 1000),
-					mailboxUserId: otherUserId,
+		const [mine, theirs] = await Promise.all(
+			[userId, otherUserId].map((mailboxUserId) =>
+				db.incomingMeetingNote.findFirstOrThrow({
+					where: { mailboxUserId },
+					select: { id: true },
 				}),
 			),
-		).toBe("DUPLICATE");
-		expect(
-			await incoming.receive(
-				note(`Standup ${suffix}`, {
-					heldAt: new Date(heldAt.getTime() + 3 * HOUR_MS),
-					mailboxUserId: otherUserId,
-				}),
-			),
-		).toBe("NEW");
+		);
+
+		await incoming.file({ id: mine?.id ?? "", companyId }, userId);
+
+		await expect(
+			incoming.file({ id: theirs?.id ?? "", companyId }, otherUserId),
+		).rejects.toThrow("Sayu already filed the notes from this meeting.");
 	});
 });
 

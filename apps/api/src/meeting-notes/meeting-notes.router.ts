@@ -94,8 +94,11 @@ export class MeetingNotesRouter {
 		output: incomingNotesOutput,
 		meta: restMeta("GET", "/meeting-notes/inbox", ["Meeting notes"]),
 	})
-	async inbox(@Input() input: z.infer<typeof incomingNotesInput>) {
-		return this.incoming.list(input);
+	async inbox(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof incomingNotesInput>,
+	) {
+		return this.incoming.list(input, ctx.user.id);
 	}
 
 	@Mutation({

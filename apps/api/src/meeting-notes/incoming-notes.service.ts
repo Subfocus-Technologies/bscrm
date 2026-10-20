@@ -16,8 +16,7 @@ import type {
 } from "./meeting-notes.contracts";
 import { MeetingNotesService } from "./meeting-notes.service";
 
-const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
+const HOUR_MS = 60 * 60 * 1000;
 const PREVIEW_LENGTH = 1_200;
 
 export type ReceivedNote = {
@@ -53,7 +52,21 @@ const NOTE_SELECT = {
 	filedAt: true,
 	mailboxUser: { select: { name: true } },
 	filedBy: { select: { name: true } },
-	calendarEvent: { select: { title: true, startsAt: true } },
+	calendarEvent: {
+		select: {
+			title: true,
+			startsAt: true,
+			contact: { select: { id: true, firstName: true, lastName: true } },
+			company: { select: { id: true, name: true } },
+			attendees: {
+				where: { contactId: { not: null } },
+				select: {
+					contact: { select: { id: true, firstName: true, lastName: true } },
+				},
+				take: 1,
+			},
+		},
+	},
 	activity: {
 		select: {
 			contact: { select: { id: true, firstName: true, lastName: true } },
@@ -66,8 +79,16 @@ type NoteRow = Prisma.IncomingMeetingNoteGetPayload<{
 	select: typeof NOTE_SELECT;
 }>;
 
-function recordOf(row: NoteRow): IncomingNote["record"] {
-	const contact = row.activity?.contact;
+type RecordParts = {
+	contact?: {
+		id: string;
+		firstName: string | null;
+		lastName: string | null;
+	} | null;
+	company?: { id: string; name: string } | null;
+};
+
+function toRecord({ contact, company }: RecordParts): IncomingNote["record"] {
 	if (contact) {
 		return {
 			kind: "contact",
@@ -76,10 +97,19 @@ function recordOf(row: NoteRow): IncomingNote["record"] {
 		};
 	}
 
-	const company = row.activity?.company;
 	return company
 		? { kind: "company", id: company.id, name: company.name }
 		: null;
+}
+
+function suggestedRecord(row: NoteRow): IncomingNote["suggested"] {
+	const event = row.calendarEvent;
+	if (!event) return null;
+
+	return toRecord({
+		contact: event.contact ?? event.attendees[0]?.contact ?? null,
+		company: event.company,
+	});
 }
 
 function toNote(row: NoteRow): IncomingNote {
@@ -94,7 +124,11 @@ function toNote(row: NoteRow): IncomingNote {
 		activityId: row.activityId,
 		filedBy: row.filedBy?.name ?? null,
 		filedAt: row.filedAt?.toISOString() ?? null,
-		record: recordOf(row),
+		record: toRecord({
+			contact: row.activity?.contact,
+			company: row.activity?.company,
+		}),
+		suggested: suggestedRecord(row),
 		meeting: row.calendarEvent
 			? {
 					title: row.calendarEvent.title,
@@ -135,46 +169,37 @@ export class IncomingNotesService {
 		});
 		if (existing && !needsRereading(existing)) return existing.status;
 
-		const event = await this.matchEvent(note);
-		const duplicate = await this.isDuplicate(note, event?.id ?? null);
+		const calendarEventId = await this.matchEvent(note);
+		const duplicate = await this.isDuplicate(note, calendarEventId);
 		const read = {
 			subject: note.subject,
 			title: note.title,
 			body: note.body,
 			docUrl: note.docUrl,
-			calendarEventId: event?.id ?? null,
+			calendarEventId,
 			parserVersion: MEETING_NOTES.inbox.parserVersion,
 			status: duplicate
 				? IncomingMeetingNoteStatus.DUPLICATE
 				: IncomingMeetingNoteStatus.NEW,
 		};
 
-		const created = await this.db.incomingMeetingNote.upsert({
+		const saved = await this.db.incomingMeetingNote.upsert({
 			where: { gmailMessageId: note.gmailMessageId },
 			create: { ...note, ...read, source: "GEMINI" },
 			update: read,
-			select: { id: true, status: true },
+			select: { status: true },
 		});
 
-		if (created.status !== IncomingMeetingNoteStatus.NEW || !event?.record) {
-			return created.status;
-		}
-
-		await this.fileNote(created.id, event.record, note.mailboxUserId, null);
-
-		this.logger.log({
-			message: "Gemini notes filed on their meeting",
-			noteId: created.id,
-			calendarEventId: event.id,
-			userId: note.mailboxUserId,
-		});
-
-		return IncomingMeetingNoteStatus.FILED;
+		return saved.status;
 	}
 
-	async list(input: IncomingNotesInput): Promise<IncomingNotes> {
+	async list(
+		input: IncomingNotesInput,
+		userId: string,
+	): Promise<IncomingNotes> {
 		const pageSize = MEETING_NOTES.inbox.pageSize;
 		const where = {
+			mailboxUserId: userId,
 			status: input.view,
 		} satisfies Prisma.IncomingMeetingNoteWhereInput;
 
@@ -189,6 +214,7 @@ export class IncomingNotesService {
 			this.db.incomingMeetingNote.count({ where }),
 			this.db.incomingMeetingNote.groupBy({
 				by: ["status"],
+				where: { mailboxUserId: userId },
 				_count: { _all: true },
 			}),
 		]);
@@ -216,12 +242,7 @@ export class IncomingNotesService {
 			? { contactId: input.contactId }
 			: { companyId: input.companyId };
 
-		const activityId = await this.fileNote(
-			input.id,
-			record,
-			actingUserId,
-			actingUserId,
-		);
+		const activityId = await this.fileNote(input.id, record, actingUserId);
 
 		this.logger.log({
 			message: "Meeting notes filed from the inbox",
@@ -246,10 +267,10 @@ export class IncomingNotesService {
 			: IncomingMeetingNoteStatus.NEW;
 
 		const updated = await this.db.incomingMeetingNote.updateMany({
-			where: { id, status: from },
+			where: { id, mailboxUserId: actingUserId, status: from },
 			data: { status: to },
 		});
-		if (updated.count === 0) await this.conflict(id);
+		if (updated.count === 0) await this.conflict(id, actingUserId);
 
 		this.logger.log({
 			message: ignored ? "Meeting notes ignored" : "Meeting notes restored",
@@ -263,12 +284,14 @@ export class IncomingNotesService {
 	private async fileNote(
 		id: string,
 		record: NoteRecord,
-		authorId: string,
-		filedById: string | null,
+		userId: string,
 	): Promise<string> {
+		await this.refuseSecondFiling(id, userId);
+
 		const claimed = await this.db.incomingMeetingNote.updateMany({
 			where: {
 				id,
+				mailboxUserId: userId,
 				status: {
 					in: [
 						IncomingMeetingNoteStatus.NEW,
@@ -278,11 +301,11 @@ export class IncomingNotesService {
 			},
 			data: {
 				status: IncomingMeetingNoteStatus.FILED,
-				filedById,
+				filedById: userId,
 				filedAt: new Date(),
 			},
 		});
-		if (claimed.count === 0) await this.conflict(id);
+		if (claimed.count === 0) await this.conflict(id, userId);
 
 		const note = await this.db.incomingMeetingNote.findUniqueOrThrow({
 			where: { id },
@@ -305,7 +328,7 @@ export class IncomingNotesService {
 					occurredAt: note.heldAt.toISOString(),
 					calendarEventId: note.calendarEventId ?? undefined,
 				},
-				authorId,
+				userId,
 			);
 
 			await this.db.incomingMeetingNote.update({
@@ -327,8 +350,38 @@ export class IncomingNotesService {
 		}
 	}
 
-	private async conflict(id: string): Promise<never> {
-		const exists = await this.db.incomingMeetingNote.count({ where: { id } });
+	private async refuseSecondFiling(id: string, userId: string): Promise<void> {
+		const note = await this.db.incomingMeetingNote.findFirst({
+			where: { id, mailboxUserId: userId },
+			select: { docUrl: true, calendarEventId: true },
+		});
+		if (!note) return;
+
+		const sameMeeting: Prisma.IncomingMeetingNoteWhereInput[] = [
+			note.docUrl ? { docUrl: note.docUrl } : null,
+			note.calendarEventId ? { calendarEventId: note.calendarEventId } : null,
+		].filter((condition) => condition !== null);
+		if (sameMeeting.length === 0) return;
+
+		const filed = await this.db.incomingMeetingNote.findFirst({
+			where: {
+				id: { not: id },
+				status: IncomingMeetingNoteStatus.FILED,
+				OR: sameMeeting,
+			},
+			select: { filedBy: { select: { name: true } } },
+		});
+		if (!filed) return;
+
+		throw new ConflictException(
+			`${filed.filedBy?.name ?? "Someone"} already filed the notes from this meeting.`,
+		);
+	}
+
+	private async conflict(id: string, userId: string): Promise<never> {
+		const exists = await this.db.incomingMeetingNote.count({
+			where: { id, mailboxUserId: userId },
+		});
 		if (exists === 0) {
 			throw new NotFoundException(`No meeting notes with id ${id}.`);
 		}
@@ -341,22 +394,15 @@ export class IncomingNotesService {
 		note: ReceivedNote,
 		calendarEventId: string | null,
 	): Promise<boolean> {
-		const windowMs = MEETING_NOTES.inbox.duplicateWindowMinutes * MINUTE_MS;
 		const sameMeeting: Prisma.IncomingMeetingNoteWhereInput[] = [
 			note.docUrl ? { docUrl: note.docUrl } : null,
 			calendarEventId ? { calendarEventId } : null,
-			{
-				title: { equals: note.title, mode: "insensitive" as const },
-				mailboxUserId: { not: note.mailboxUserId },
-				heldAt: {
-					gte: new Date(note.heldAt.getTime() - windowMs),
-					lte: new Date(note.heldAt.getTime() + windowMs),
-				},
-			},
 		].filter((condition) => condition !== null);
+		if (sameMeeting.length === 0) return false;
 
 		const existing = await this.db.incomingMeetingNote.count({
 			where: {
+				mailboxUserId: note.mailboxUserId,
 				gmailMessageId: { not: note.gmailMessageId },
 				status: { not: IncomingMeetingNoteStatus.DUPLICATE },
 				OR: sameMeeting,
@@ -366,9 +412,7 @@ export class IncomingNotesService {
 		return existing > 0;
 	}
 
-	private async matchEvent(
-		note: ReceivedNote,
-	): Promise<{ id: string; record: NoteRecord | null } | null> {
+	private async matchEvent(note: ReceivedNote): Promise<string | null> {
 		const candidates = await this.db.calendarEvent.findMany({
 			where: {
 				startsAt: {
@@ -383,32 +427,14 @@ export class IncomingNotesService {
 			},
 			orderBy: { startsAt: "desc" },
 			take: 50,
-			select: {
-				id: true,
-				title: true,
-				contactId: true,
-				companyId: true,
-				attendees: {
-					where: { contactId: { not: null } },
-					select: { contactId: true },
-					take: 1,
-				},
-			},
+			select: { id: true, title: true },
 		});
 
 		const event = candidates.find(
 			(candidate) =>
 				candidate.title && titlesMatch(note.title, candidate.title),
 		);
-		if (!event) return null;
 
-		const contactId = event.contactId ?? event.attendees[0]?.contactId ?? null;
-		const record = contactId
-			? { contactId }
-			: event.companyId
-				? { companyId: event.companyId }
-				: null;
-
-		return { id: event.id, record };
+		return event?.id ?? null;
 	}
 }

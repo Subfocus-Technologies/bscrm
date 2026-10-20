@@ -93,6 +93,7 @@ const incomingNoteOutput = z.object({
 	filedBy: z.string().nullable(),
 	filedAt: z.string().nullable(),
 	record: incomingNoteRecord.nullable(),
+	suggested: incomingNoteRecord.nullable(),
 	meeting: z
 		.object({ title: z.string().nullable(), startsAt: z.string() })
 		.nullable(),
