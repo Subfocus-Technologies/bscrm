@@ -241,8 +241,15 @@ Cluely or any note taker, and proposes to-dos and next steps.
   a CRM contact or company, `IncomingNotesService` files it on that record at
   once, through the same `meetingNotes.import` path, so the agent reads it.
   The rest wait on the *Meeting notes* page until a person files or ignores
-  them. A second copy of the same meeting (same Google Doc or same calendar
-  event) from another mailbox is stored as `DUPLICATE` and never shown.
+  them. Gemini sends a copy to every invited guest, so a second copy of the
+  same meeting from another mailbox is stored as `DUPLICATE` and never shown:
+  same Google Doc, same calendar event, or the same title within
+  `duplicateWindowMinutes`. The doc link comes from the email's HTML part, and
+  `geminiNoteBody` drops Google's header and footer.
+- **Notes are re-read when the reader improves.** Each row records the
+  `parserVersion` that read it. A `NEW` row older than
+  `MEETING_NOTES.inbox.parserVersion` is fetched and read again on the next
+  sync; raise the number whenever `gemini-note.ts` changes what it extracts.
 
 ## Investors
 

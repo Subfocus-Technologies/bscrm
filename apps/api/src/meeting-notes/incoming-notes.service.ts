@@ -16,7 +16,8 @@ import type {
 } from "./meeting-notes.contracts";
 import { MeetingNotesService } from "./meeting-notes.service";
 
-const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
 const PREVIEW_LENGTH = 1_200;
 
 export type ReceivedNote = {
@@ -28,6 +29,16 @@ export type ReceivedNote = {
 	docUrl: string | null;
 	heldAt: Date;
 };
+
+function needsRereading(row: {
+	status: IncomingMeetingNoteStatus;
+	parserVersion: number;
+}): boolean {
+	return (
+		row.status === IncomingMeetingNoteStatus.NEW &&
+		row.parserVersion < MEETING_NOTES.inbox.parserVersion
+	);
+}
 
 type NoteRecord = { contactId?: string; companyId?: string };
 
@@ -102,32 +113,46 @@ export class IncomingNotesService {
 		private readonly notes: MeetingNotesService,
 	) {}
 
-	async known(gmailMessageIds: readonly string[]): Promise<Set<string>> {
+	async settled(gmailMessageIds: readonly string[]): Promise<Set<string>> {
 		if (gmailMessageIds.length === 0) return new Set();
 
 		const rows = await this.db.incomingMeetingNote.findMany({
 			where: { gmailMessageId: { in: [...gmailMessageIds] } },
-			select: { gmailMessageId: true },
+			select: { gmailMessageId: true, status: true, parserVersion: true },
 		});
 
-		return new Set(rows.map((row) => row.gmailMessageId));
+		return new Set(
+			rows
+				.filter((row) => !needsRereading(row))
+				.map((row) => row.gmailMessageId),
+		);
 	}
 
 	async receive(note: ReceivedNote): Promise<IncomingMeetingNoteStatus> {
+		const existing = await this.db.incomingMeetingNote.findUnique({
+			where: { gmailMessageId: note.gmailMessageId },
+			select: { status: true, parserVersion: true },
+		});
+		if (existing && !needsRereading(existing)) return existing.status;
+
 		const event = await this.matchEvent(note);
 		const duplicate = await this.isDuplicate(note, event?.id ?? null);
+		const read = {
+			subject: note.subject,
+			title: note.title,
+			body: note.body,
+			docUrl: note.docUrl,
+			calendarEventId: event?.id ?? null,
+			parserVersion: MEETING_NOTES.inbox.parserVersion,
+			status: duplicate
+				? IncomingMeetingNoteStatus.DUPLICATE
+				: IncomingMeetingNoteStatus.NEW,
+		};
 
 		const created = await this.db.incomingMeetingNote.upsert({
 			where: { gmailMessageId: note.gmailMessageId },
-			create: {
-				...note,
-				source: "GEMINI",
-				calendarEventId: event?.id ?? null,
-				status: duplicate
-					? IncomingMeetingNoteStatus.DUPLICATE
-					: IncomingMeetingNoteStatus.NEW,
-			},
-			update: {},
+			create: { ...note, ...read, source: "GEMINI" },
+			update: read,
 			select: { id: true, status: true },
 		});
 
@@ -316,11 +341,19 @@ export class IncomingNotesService {
 		note: ReceivedNote,
 		calendarEventId: string | null,
 	): Promise<boolean> {
-		const sameMeeting = [
+		const windowMs = MEETING_NOTES.inbox.duplicateWindowMinutes * MINUTE_MS;
+		const sameMeeting: Prisma.IncomingMeetingNoteWhereInput[] = [
 			note.docUrl ? { docUrl: note.docUrl } : null,
 			calendarEventId ? { calendarEventId } : null,
+			{
+				title: { equals: note.title, mode: "insensitive" as const },
+				mailboxUserId: { not: note.mailboxUserId },
+				heldAt: {
+					gte: new Date(note.heldAt.getTime() - windowMs),
+					lte: new Date(note.heldAt.getTime() + windowMs),
+				},
+			},
 		].filter((condition) => condition !== null);
-		if (sameMeeting.length === 0) return false;
 
 		const existing = await this.db.incomingMeetingNote.count({
 			where: {

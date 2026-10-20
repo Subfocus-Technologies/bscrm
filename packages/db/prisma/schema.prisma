@@ -1469,6 +1469,7 @@ model IncomingMeetingNote {
   calendarEventId String?
   calendarEvent   CalendarEvent?            @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
   status          IncomingMeetingNoteStatus @default(NEW)
+  parserVersion   Int                       @default(1)
   activityId      String?                   @unique
   activity        Activity?                 @relation(fields: [activityId], references: [id], onDelete: SetNull)
   filedById       String?

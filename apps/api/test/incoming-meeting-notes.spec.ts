@@ -9,6 +9,7 @@ import {
 import type { GmailClient, GmailMessage } from "../src/google/gmail.client";
 import {
 	geminiDocUrl,
+	geminiNoteBody,
 	geminiNoteTitle,
 	titlesMatch,
 } from "../src/meeting-notes/gemini-note";
@@ -131,8 +132,43 @@ describe("reading a Gemini email", () => {
 			),
 		).toBe("https://docs.google.com/document/d/abc_123-x");
 		expect(geminiDocUrl("No link here")).toBeNull();
+		expect(
+			geminiDocUrl(
+				'<a href="https://docs.google.com/document/d/1iQh_x/edit?usp=meet">Open</a>',
+				"Open meeting notes",
+			),
+		).toBe("https://docs.google.com/document/d/1iQh_x");
 		expect(titlesMatch("Pilot review", "pilot-review")).toBe(true);
 		expect(titlesMatch("Pilot review", "Board meeting")).toBe(false);
+	});
+});
+
+describe("cleaning a Gemini email", () => {
+	it("keeps the notes and drops Google's header and footer", () => {
+		expect(
+			geminiNoteBody(
+				[
+					"Notes from 'Falcon x Bricksmart'",
+					"These notes have been sent to Invited guests in your organisation.",
+					"Open meeting notes",
+					"The content was auto-generated on October 16, 2026, 11:34 AM BST, and may\ncontain errors.",
+					"Quick notes",
+					"Sayu proposed a 6-month subscription.",
+					"Suggested next steps",
+					"[Sayu Sinha] Confirm export pricing.",
+					"Meeting records Document Notes by Gemini",
+					"Is the content of this email helpful?\nNot useful email Useful email",
+					"Google LLC, 1600 Ampitheatre Parkway, Mountain View, CA 94043, USA",
+				].join("\n\n"),
+			),
+		).toBe(
+			[
+				"Quick notes",
+				"Sayu proposed a 6-month subscription.",
+				"Suggested next steps",
+				"[Sayu Sinha] Confirm export pricing.",
+			].join("\n\n"),
+		);
 	});
 });
 
@@ -270,22 +306,52 @@ describe("the meeting notes inbox", () => {
 			),
 		).toBe("DUPLICATE");
 	});
+
+	it("keeps one copy when another mailbox gets the same meeting minutes apart", async () => {
+		const heldAt = new Date();
+
+		expect(await incoming.receive(note(`Standup ${suffix}`, { heldAt }))).toBe(
+			"NEW",
+		);
+		expect(
+			await incoming.receive(
+				note(`standup ${suffix}`, {
+					heldAt: new Date(heldAt.getTime() + 2 * 60 * 1000),
+					mailboxUserId: otherUserId,
+				}),
+			),
+		).toBe("DUPLICATE");
+		expect(
+			await incoming.receive(
+				note(`Standup ${suffix}`, {
+					heldAt: new Date(heldAt.getTime() + 3 * HOUR_MS),
+					mailboxUserId: otherUserId,
+				}),
+			),
+		).toBe("NEW");
+	});
 });
 
 function gmailMessage(id: string, from: string, subject: string): GmailMessage {
-	const body = Buffer.from(
-		"Summary: pilot agreed.\nhttps://docs.google.com/document/d/doc-" + id,
+	const text = Buffer.from(
+		"Open meeting notes\n\nSummary: pilot agreed.\n\nIs the content of this email helpful?",
+	).toString("base64url");
+	const html = Buffer.from(
+		`<a href="https://docs.google.com/document/d/doc-${id}/edit?usp=meet_tnfm_email">Open meeting notes</a><p>Summary: pilot agreed.</p>`,
 	).toString("base64url");
 	return {
 		id,
 		internalDate: String(Date.now()),
 		payload: {
-			mimeType: "text/plain",
+			mimeType: "multipart/alternative",
 			headers: [
 				{ name: "From", value: from },
 				{ name: "Subject", value: subject },
 			],
-			body: { data: body },
+			parts: [
+				{ mimeType: "text/plain", body: { data: text } },
+				{ mimeType: "text/html", body: { data: html } },
+			],
 		},
 	};
 }
@@ -328,14 +394,29 @@ describe("collecting Gemini notes from Gmail", () => {
 		expect(queries).toEqual([geminiNotesQuery()]);
 		const stored = await db.incomingMeetingNote.findFirstOrThrow({
 			where: { gmailMessageId: `a-${suffix}` },
-			select: { title: true, docUrl: true, status: true },
+			select: { title: true, docUrl: true, status: true, body: true },
 		});
 		expect(stored).toEqual({
 			title: `Roadmap ${suffix}`,
 			docUrl: `https://docs.google.com/document/d/doc-a-${suffix}`,
 			status: "NEW",
+			body: "Summary: pilot agreed.",
 		});
 
 		expect((await collector.collect(userId, "token")).stored).toBe(0);
+
+		await db.incomingMeetingNote.update({
+			where: { gmailMessageId: `a-${suffix}` },
+			data: { docUrl: null, body: "old", parserVersion: 1 },
+		});
+		expect((await collector.collect(userId, "token")).stored).toBe(1);
+		const reread = await db.incomingMeetingNote.findFirstOrThrow({
+			where: { gmailMessageId: `a-${suffix}` },
+			select: { docUrl: true, body: true },
+		});
+		expect(reread).toEqual({
+			docUrl: `https://docs.google.com/document/d/doc-a-${suffix}`,
+			body: "Summary: pilot agreed.",
+		});
 	});
 });

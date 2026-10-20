@@ -39,6 +39,12 @@ export function plainTextBody(payload: GmailPart | undefined): string {
 	return "";
 }
 
+export function htmlBody(payload: GmailPart | undefined): string {
+	if (!payload) return "";
+	const html = findPart(payload, "text/html");
+	return html?.body?.data ? decodeBase64Url(html.body.data) : "";
+}
+
 function findPart(part: GmailPart, mimeType: string): GmailPart | null {
 	if (part.mimeType === mimeType && !part.filename && part.body?.data) {
 		return part;

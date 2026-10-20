@@ -11,6 +11,8 @@ export const MEETING_NOTES = {
 		fetchPerSync: 20,
 		matchWindowHours: 36,
 		pageSize: 25,
+		parserVersion: 2,
+		duplicateWindowMinutes: 15,
 	},
 	title: { maxLength: 160 },
 	followUps: {

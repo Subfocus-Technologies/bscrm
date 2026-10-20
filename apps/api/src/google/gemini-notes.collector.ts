@@ -1,12 +1,16 @@
 import { MEETING_NOTES } from "@crm/validation/meeting-notes";
 import { Injectable, Logger } from "@nestjs/common";
-import { geminiDocUrl, geminiNoteTitle } from "../meeting-notes/gemini-note";
+import {
+	geminiDocUrl,
+	geminiNoteBody,
+	geminiNoteTitle,
+} from "../meeting-notes/gemini-note";
 import {
 	IncomingNotesService,
 	type ReceivedNote,
 } from "../meeting-notes/incoming-notes.service";
 import { GmailClient, type GmailMessage } from "./gmail.client";
-import { header, plainTextBody } from "./gmail-mime";
+import { header, htmlBody, plainTextBody } from "./gmail-mime";
 
 export type GeminiCollectOutcome = {
 	listed: number;
@@ -49,8 +53,8 @@ export class GeminiNotesCollector {
 		const ids = (listed.data.messages ?? []).flatMap((message) =>
 			message.id ? [message.id] : [],
 		);
-		const known = await this.incoming.known(ids);
-		const pending = ids.filter((id) => !known.has(id));
+		const settled = await this.incoming.settled(ids);
+		const pending = ids.filter((id) => !settled.has(id));
 		const batch = pending.slice(0, MEETING_NOTES.inbox.fetchPerSync);
 
 		let stored = 0;
@@ -88,15 +92,16 @@ export class GeminiNotesCollector {
 		const subject = header(headers, "subject") ?? "Meeting notes";
 		const sentAt = Number(message.internalDate);
 		const heldAt = Number.isFinite(sentAt) ? new Date(sentAt) : new Date();
-		const body = plainTextBody(message.payload);
+		const text = plainTextBody(message.payload);
+		const html = htmlBody(message.payload);
 
 		return {
 			gmailMessageId: message.id,
 			mailboxUserId: userId,
 			subject: subject.slice(0, MEETING_NOTES.title.maxLength * 2),
 			title: geminiNoteTitle(subject),
-			body: body.slice(0, MEETING_NOTES.notes.maxLength),
-			docUrl: geminiDocUrl(body),
+			body: geminiNoteBody(text).slice(0, MEETING_NOTES.notes.maxLength),
+			docUrl: geminiDocUrl(html, text),
 			heldAt,
 		};
 	}
