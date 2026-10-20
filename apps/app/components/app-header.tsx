@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { BusinessCrumb } from "@/components/businesses/business-crumb";
 import { EnrichmentQueue } from "@/components/enrichment-queue";
 import { useMobileNav } from "@/components/mobile-nav";
+import { NextMeeting } from "@/components/next-meeting";
 import { signOutAndRedirect } from "@/lib/sign-out";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
@@ -64,6 +65,7 @@ export function AppHeader({ user }: { user: User }) {
 			</div>
 
 			<div className="ml-auto flex shrink-0 items-center gap-1.5">
+				<NextMeeting />
 				<EnrichmentQueue />
 				<UserMenu
 					user={user}

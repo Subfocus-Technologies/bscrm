@@ -30,3 +30,22 @@ export const upcomingMeetingsOutput = z.array(meetingOutput);
 export const prepareMeetingInput = z.object({ eventId: z.string() });
 
 export const prepareMeetingOutput = z.object({ queued: z.boolean() });
+
+const nextMeetingOutput = z.object({
+	id: z.string(),
+	title: z.string().nullable(),
+	startsAt: z.string(),
+	endsAt: z.string(),
+	conferenceUrl: z.string().nullable(),
+	calendarUrl: z.string().nullable(),
+	location: z.string().nullable(),
+});
+
+export type NextMeeting = z.infer<typeof nextMeetingOutput>;
+
+export const nextMeetingsOutput = z.object({
+	status: z.enum(["connected", "not-connected", "reconnect", "unavailable"]),
+	meetings: z.array(nextMeetingOutput),
+});
+
+export type NextMeetings = z.infer<typeof nextMeetingsOutput>;

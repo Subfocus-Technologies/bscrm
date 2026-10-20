@@ -8,10 +8,12 @@ import {
 	UseMiddlewares,
 } from "nestjs-trpc";
 import type { z } from "zod";
+import { NextMeetingsService } from "../google/next-meetings.service";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
+	nextMeetingsOutput,
 	prepareMeetingInput,
 	prepareMeetingOutput,
 	upcomingMeetingsInput,
@@ -24,7 +26,16 @@ import { MeetingsService } from "./meetings.service";
 export class MeetingsRouter {
 	constructor(
 		@Inject(MeetingsService) private readonly meetings: MeetingsService,
+		@Inject(NextMeetingsService) private readonly next: NextMeetingsService,
 	) {}
+
+	@Query({
+		output: nextMeetingsOutput,
+		meta: restMeta("GET", "/meetings/next", ["Meetings"]),
+	})
+	async mine(@Ctx() ctx: AuthedTrpcContext) {
+		return this.next.forUser(ctx.user.id);
+	}
 
 	@Query({
 		input: upcomingMeetingsInput,

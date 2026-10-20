@@ -3,6 +3,7 @@ import { z } from "zod";
 export const MEETING_NOTES = {
 	notes: { maxLength: 50_000 },
 	upcoming: { daysBack: 2, daysAhead: 7, maxMeetings: 30, briefFreshDays: 30 },
+	myCalendar: { maxMeetings: 5, daysAhead: 7, cacheMs: 60_000 },
 	inbox: {
 		geminiSender: "gemini-notes@google.com",
 		backfillDays: 90,

@@ -210,6 +210,12 @@ Two rules follow for the serverless build:
   emails per run, and a failure there never fails the mail sync. Matching a
   note to a calendar meeting is a title and time comparison, not a decision
   about a person.
+- **The header's next-meeting window reads Google Calendar live.** `meetings.mine`
+  (`NextMeetingsService`) lists the signed-in person's own next timed meetings
+  that they have not declined, internal ones included, because the sync stores
+  only meetings with CRM people. It caches each person's answer for
+  `MEETING_NOTES.myCalendar.cacheMs`, so Google sees at most one call a minute
+  per person. Outlook calendars are not read.
 - **Microsoft has no token-revocation endpoint.** `revoke` clears the columns and the
   UI says the consent itself is removed in the user's Microsoft account. Google's still
   posts to `oauth2.googleapis.com/revoke` and refuses to clear if that fails.

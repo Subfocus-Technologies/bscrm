@@ -76,6 +76,30 @@ export class CalendarClient {
 			...window,
 		});
 	}
+
+	async upcomingEvents(
+		accessToken: string,
+		query: { timeMin: string; timeMax: string; maxResults: number },
+	): Promise<MailboxResult<EventsPage>> {
+		return this.api.get<EventsPage>(
+			EVENTS_URL,
+			accessToken,
+			upcomingEventsQuery(query),
+		);
+	}
+}
+
+function upcomingEventsQuery(query: {
+	timeMin: string;
+	timeMax: string;
+	maxResults: number;
+}) {
+	return {
+		singleEvents: true,
+		orderBy: "startTime",
+		showDeleted: false,
+		...query,
+	};
 }
 
 export function conferenceUrl(event: GoogleEvent): string | null {
