@@ -3,6 +3,7 @@
 import Building from "@carbon/icons-react/es/Building";
 import Close from "@carbon/icons-react/es/Close";
 import Dashboard from "@carbon/icons-react/es/Dashboard";
+import Growth from "@carbon/icons-react/es/Growth";
 import Notebook from "@carbon/icons-react/es/Notebook";
 import Partnership from "@carbon/icons-react/es/Partnership";
 import Settings from "@carbon/icons-react/es/Settings";
@@ -62,6 +63,12 @@ const ITEMS: RailItem[] = [
 		match: "prefix",
 	},
 	{ title: "Deals", href: "/deals", icon: Partnership, match: "prefix" },
+	{
+		title: "Investors",
+		href: "/investors",
+		icon: Growth,
+		match: "prefix",
+	},
 	{
 		title: "Meeting notes",
 		href: "/meeting-notes",

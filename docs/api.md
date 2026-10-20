@@ -210,6 +210,11 @@ Two rules follow for the serverless build:
   emails per run, and a failure there never fails the mail sync. Matching a
   note to a calendar meeting is a title and time comparison, not a decision
   about a person.
+- **Investors are not contacts.** `investors.*` keeps the raise and its investor
+  pipeline in their own tables, so the sales lists, business filing and
+  enrichment never see them. Imports arrive as parsed rows from the browser
+  (`apps/app/lib/investor-import.ts` reads .xlsx and .csv) and go through
+  `addInvestors` in `@crm/db/investors`, the same path the agent uses.
 - **The header's next-meeting window reads Google Calendar live.** `meetings.mine`
   (`NextMeetingsService`) lists the signed-in person's own next timed meetings
   that they have not declined, internal ones included, because the sync stores

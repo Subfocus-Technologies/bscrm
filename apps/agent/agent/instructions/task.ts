@@ -36,6 +36,8 @@ export default defineDynamic({
 
 			const fieldKeys = attributeText.parse(attributes.fieldKeys);
 			const activityId = attributeText.parse(attributes.activityId);
+			const fundraiseId = attributeText.parse(attributes.fundraiseId);
+			const investorId = attributeText.parse(attributes.investorId);
 
 			const { markdown, focus } = await sessionPreamble(
 				{
@@ -50,6 +52,8 @@ export default defineDynamic({
 					budget,
 					fieldKeys: fieldKeys ? fieldKeys.split(",") : null,
 					activityId,
+					fundraiseId,
+					investorId,
 				},
 			);
 

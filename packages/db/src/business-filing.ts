@@ -1,11 +1,11 @@
 import type { Db } from "./client";
+import { workspaceDayStart } from "./day";
 import { normalizeDomain } from "./domain";
 import type { Prisma } from "./generated/prisma/client";
 import {
 	ActivityType,
 	type BusinessFilingSource,
 } from "./generated/prisma/enums";
-import { BUSINESS_FILING_LIMIT } from "./settings";
 
 export type FilingRecord =
 	| { kind: "company"; id: string }
@@ -380,51 +380,6 @@ export async function followCompany(
 	return filed;
 }
 
-const HOUR_MS = 60 * 60 * 1000;
-
-function wallClockMs(at: Date, timeZone: string): number {
-	const parts = Object.fromEntries(
-		new Intl.DateTimeFormat("en-GB", {
-			timeZone,
-			hourCycle: "h23",
-			year: "numeric",
-			month: "2-digit",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-			second: "2-digit",
-		})
-			.formatToParts(at)
-			.map((part) => [part.type, Number(part.value)]),
-	);
-
-	return Date.UTC(
-		parts.year ?? 0,
-		(parts.month ?? 1) - 1,
-		parts.day ?? 1,
-		parts.hour ?? 0,
-		parts.minute ?? 0,
-		parts.second ?? 0,
-	);
-}
-
-export function filingDayStart(now = new Date()): Date {
-	const { timeZone } = BUSINESS_FILING_LIMIT;
-	const wall = new Date(wallClockMs(now, timeZone));
-	const midnight = Date.UTC(
-		wall.getUTCFullYear(),
-		wall.getUTCMonth(),
-		wall.getUTCDate(),
-	);
-	const offset = wallClockMs(new Date(midnight), timeZone) - midnight;
-
-	return new Date(midnight - offset);
-}
-
-export function nextFilingDayStart(now = new Date()): Date {
-	return filingDayStart(new Date(filingDayStart(now).getTime() + 36 * HOUR_MS));
-}
-
 export async function businessFilingRunsToday(
 	client: Client,
 	now = new Date(),
@@ -433,7 +388,7 @@ export async function businessFilingRunsToday(
 		where: {
 			kind: "business-filing",
 			sessionId: { not: null },
-			startedAt: { gte: filingDayStart(now) },
+			startedAt: { gte: workspaceDayStart(now) },
 		},
 	});
 }

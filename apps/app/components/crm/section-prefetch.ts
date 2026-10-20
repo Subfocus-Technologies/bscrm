@@ -13,6 +13,7 @@ export type Section =
 	| "/companies"
 	| "/contacts"
 	| "/deals"
+	| "/investors"
 	| "/meeting-notes"
 	| "/settings";
 
@@ -50,6 +51,17 @@ export function usePrefetchSection(): (section: string) => void {
 						trpc.deals.list.queryOptions({
 							...dealsSearchParams.defaultInput(),
 							business,
+						}),
+					);
+					return;
+				case "/investors":
+					void queryClient.prefetchQuery(
+						trpc.investors.list.queryOptions({
+							stage: "TO_APPROVE",
+							kinds: [],
+							q: "",
+							sort: "fit",
+							page: 1,
 						}),
 					);
 					return;

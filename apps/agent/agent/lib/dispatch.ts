@@ -9,6 +9,7 @@ import { queueEventAgentRuns } from "./custom-agent-dispatch";
 import { settledWithin } from "./deadline";
 import { DISPATCH } from "./dispatch-config";
 import { markRunning, settle } from "./enrichment";
+import { investorPayload, preflightInvestorResearch } from "./investors";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
 import { runSlackChannelJoin } from "./slack-join-task";
@@ -171,6 +172,18 @@ async function beginResearch(
 	task: LeasedTask,
 	start: (task: LeasedTask) => Promise<{ id: string }>,
 ): Promise<void> {
+	if (task.kind === "investor-research") {
+		const preflight = await preflightInvestorResearch(task.payload);
+		if (preflight.kind === "done") {
+			await completeTask(task.id, preflight.outcome);
+			return;
+		}
+		if (preflight.kind === "deferred") {
+			await deferTask(task.id, preflight.until, preflight.reason);
+			return;
+		}
+	}
+
 	if (task.kind === "business-filing") {
 		const preflight = await preflightFiling(task);
 		if (preflight.kind === "done") {
@@ -270,6 +283,12 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 	if (task.kind === "meeting-notes") {
 		const parsed = meetingNotesPayload.safeParse(task.payload);
 		if (parsed.success) records.activityId = parsed.data.activityId;
+	}
+
+	if (task.kind === "investor-discovery" || task.kind === "investor-research") {
+		const parsed = investorPayload(task.payload);
+		if (parsed) records.fundraiseId = parsed.fundraiseId;
+		if (parsed?.investorId) records.investorId = parsed.investorId;
 	}
 
 	return {
@@ -439,6 +458,10 @@ function work(
 			return "Write the profile of the company you work for, so that every other session knows who we are. Read our own site and keep it short.";
 		case "meeting-notes":
 			return "Turn the meeting notes in your instructions into follow-ups. Read the record's history only if a name or a commitment is unclear, then call propose_follow_ups once with every to-do and next step.";
+		case "investor-discovery":
+			return "Find new UK investors for our raise who fit the profile in your instructions, then call add_investors once with the best of them, each with the URL that shows they fit.";
+		case "investor-research":
+			return "Research the investor in your instructions, then call score_investor once with a verdict and a source for every criterion in the profile.";
 		case "business-filing":
 			return "Decide which of our businesses this record belongs to. Read its history first, then call file_into_business once per business it belongs to, citing the emails or meetings that show it. If nothing points anywhere, file nothing and say so.";
 		case "field-backfill": {

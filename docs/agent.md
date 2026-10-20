@@ -203,7 +203,7 @@ one of our businesses. `lib/business-filing.ts` holds every rule; the tools
   through it, so records follow their company the same way, and a person's
   ruling is respected for every automatic filing.
 - **The daily limit counts sessions, not filings.** `preflightFiling` defers a
-  task to the next UK day (midnight in `BUSINESS_FILING_LIMIT.timeZone`) once `AppSetting.businessFilingDailyLimit` sessions
+  task to the next UK day (midnight in `WORKSPACE_TIME_ZONE`, `@crm/db/day`) once `AppSetting.businessFilingDailyLimit` sessions
   have started today. Zero turns AI filing off; rules still run.
 - **The brief learns from people.** `lib/business-filing-learning.ts` puts the
   newest hand filings and suggestion decisions into every filing preamble.
@@ -243,6 +243,32 @@ Cluely or any note taker, and proposes to-dos and next steps.
   The rest wait on the *Meeting notes* page until a person files or ignores
   them. A second copy of the same meeting (same Google Doc or same calendar
   event) from another mailbox is stored as `DUPLICATE` and never shown.
+
+## Investors
+
+The Investors tab keeps one raise (`Fundraise`) and its pipeline of `Investor`
+rows. Two research-lane tasks work it; `lib/investors.ts` holds every rule and
+the tools `add_investors` and `score_investor` are thin.
+
+- **`investor-discovery` finds new investors.** The dispatch schedule queues one
+  a day per raise with `autoDiscover` on and at least one criterion
+  (`queueScheduledDiscovery`); *Find more investors* queues one at once. The
+  brief names the investors we already have, and `add_investors` needs a source
+  URL for each one.
+- **`investor-research` scores one investor.** Import and discovery both queue it
+  through `queueInvestorResearchTasks` (`@crm/db/investors`), keyed by
+  `AgentTask.subject` = the investor id. `preflightInvestorResearch` defers it to
+  the next UK day once `Fundraise.researchDailyLimit` sessions have started.
+- **The tool computes the score, not the model.** `score_investor` takes a
+  verdict per criterion; `fitScore` (`@crm/validation/investors`) turns the met
+  weights into 0 to 100, and a met "rules them out" criterion makes it 0. A met
+  criterion without a source URL is refused. Facts fill only blank fields.
+- **Duplicates are one key per investor.** `investorDedupeKey` prefers the
+  LinkedIn path, then email, then the website domain (not for angels), then name
+  and firm. Two lists that name the same investor differently can still both
+  land.
+- **Nothing is sent.** Stage 1 finds, scores and tracks. People move investors
+  through the stages by hand.
 
 ## Evidence, not confidence
 

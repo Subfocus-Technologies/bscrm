@@ -46,6 +46,10 @@ model User {
   incomingMeetingNotes        IncomingMeetingNote[] @relation("IncomingMeetingNoteMailbox")
   filedMeetingNotes           IncomingMeetingNote[] @relation("IncomingMeetingNoteFiler")
   workspaceRemovals           WorkspaceRemoval[]    @relation("WorkspaceRemover")
+  createdFundraises           Fundraise[]           @relation("FundraiseCreator")
+  updatedFundraises           Fundraise[]           @relation("FundraiseUpdater")
+  createdInvestors            Investor[]            @relation("InvestorCreator")
+  movedInvestors              Investor[]            @relation("InvestorStageMover")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -1342,6 +1346,106 @@ model MeetingFollowUp {
 
   @@index([activityId, position])
   @@map("meetingFollowUp")
+}
+
+enum InvestorKind {
+  ANGEL
+  ANGEL_GROUP
+  VC
+  FAMILY_OFFICE
+  CORPORATE_VC
+  ACCELERATOR
+  OTHER
+}
+
+enum InvestorStage {
+  TO_APPROVE
+  APPROVED
+  CONTACTED
+  REPLIED
+  MEETING
+  COMMITTED
+  PASSED
+  REJECTED
+}
+
+enum InvestorSource {
+  IMPORT
+  AGENT
+  MANUAL
+}
+
+model Fundraise {
+  id                  String   @id @default(cuid())
+  name                String
+  company             String
+  summary             String?
+  whyNow              String?
+  traction            String?
+  website             String?
+  founderLinkedIn     String?
+  roundSize           Decimal? @db.Decimal(14, 2)
+  roundCurrency       String   @default("GBP")
+  profile             Json
+  researchDailyLimit  Int      @default(40)
+  autoDiscover        Boolean  @default(true)
+  weeklyMeetingTarget Int      @default(5)
+
+  createdById String?
+  createdBy   User?   @relation("FundraiseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?   @relation("FundraiseUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  investors Investor[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fundraise")
+}
+
+model Investor {
+  id          String    @id @default(cuid())
+  fundraiseId String
+  fundraise   Fundraise @relation(fields: [fundraiseId], references: [id], onDelete: Cascade)
+
+  name           String
+  kind           InvestorKind @default(OTHER)
+  firm           String?
+  website        String?
+  linkedinUrl    String?
+  email          String?
+  location       String?
+  stages         String[]
+  sectors        String[]
+  chequeMin      Decimal?     @db.Decimal(14, 2)
+  chequeMax      Decimal?     @db.Decimal(14, 2)
+  chequeCurrency String       @default("GBP")
+  thesis         String?
+  notes          String?
+
+  source       InvestorSource
+  sourceDetail String?
+  dedupeKey    String
+
+  stage            InvestorStage @default(TO_APPROVE)
+  stageChangedAt   DateTime      @default(now())
+  stageChangedById String?
+  stageChangedBy   User?         @relation("InvestorStageMover", fields: [stageChangedById], references: [id], onDelete: SetNull)
+
+  fitScore     Int?
+  fit          Json?
+  researchedAt DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("InvestorCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([fundraiseId, dedupeKey])
+  @@index([fundraiseId, stage, fitScore])
+  @@map("investor")
 }
 
 enum IncomingMeetingNoteStatus {

@@ -13,6 +13,8 @@ export const TASK_KINDS = [
 	"agent-event",
 	"business-filing",
 	"meeting-notes",
+	"investor-discovery",
+	"investor-research",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];
@@ -56,6 +58,8 @@ export const PRIORITY = {
 	identify: 100,
 	businessFiling: 90,
 	meetingNotes: 600,
+	investorResearch: 70,
+	investorDiscovery: 60,
 	sweep: 50,
 	companyProfile: 40,
 	fieldBackfill: 20,

@@ -3,7 +3,9 @@ import { PRIORITY } from "@crm/db/agent-tasks";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { queueInvestorResearchTasks } from "@crm/db/investors";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
+import { INVESTORS, type InvestorTaskPayload } from "@crm/validation/investors";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { AGENT_DISPATCH } from "./agent-dispatch.config";
@@ -386,6 +388,68 @@ export class AgentTriggerService {
 		});
 
 		this.poke();
+	}
+
+	async investorResearchRequested(
+		fundraiseId: string,
+		investorIds: readonly string[],
+		reason: string,
+	): Promise<number> {
+		if (investorIds.length === 0) return 0;
+
+		const count = await queueInvestorResearchTasks(this.db, {
+			fundraiseId,
+			investorIds,
+			reason,
+			budget: INVESTORS.research.budget,
+		});
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "investor-research",
+			requested: investorIds.length,
+			queued: count,
+		});
+
+		if (count > 0) this.poke();
+
+		return count;
+	}
+
+	async investorDiscoveryRequested(
+		fundraiseId: string,
+		reason: string,
+	): Promise<boolean> {
+		const pending = await this.db.agentTask.count({
+			where: {
+				kind: "investor-discovery",
+				finishedAt: null,
+				subject: fundraiseId,
+			},
+		});
+		if (pending > 0) return false;
+
+		await this.db.agentTask.create({
+			data: {
+				kind: "investor-discovery",
+				reason,
+				priority: PRIORITY.requested,
+				budget: INVESTORS.discovery.budget,
+				dueAt: new Date(),
+				subject: fundraiseId,
+				payload: { fundraiseId } satisfies InvestorTaskPayload,
+			},
+		});
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "investor-discovery",
+			fundraiseId,
+		});
+
+		this.poke();
+
+		return true;
 	}
 
 	async meetingPrepRequested(contactId: string, when: Date): Promise<boolean> {

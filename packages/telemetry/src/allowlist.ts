@@ -114,6 +114,7 @@ export function permitted(
 }
 
 export const AGENT_TOOLS = [
+	"add_investors",
 	"agent",
 	"archive_field",
 	"enrich_company",
@@ -138,6 +139,7 @@ export const AGENT_TOOLS = [
 	"research_person",
 	"resolve_linkedin_profile",
 	"schedule_recheck",
+	"score_investor",
 	"search_crm",
 	"set_chat_title",
 	"set_contact_socials",

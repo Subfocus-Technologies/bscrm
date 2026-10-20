@@ -27,6 +27,7 @@ import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
 import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput, fieldEntityInput, fieldFiltersOutput, fieldIdInput, fieldCoverageOutput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput, fieldReorderOutput, fieldDeleteOutput, fieldBackfillOutput } from "../fields/fields.contracts";
 import { googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
 import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
+import { fundraiseGetOutput, fundraiseSaveInput, fundraiseOutput, investorListInput, investorListOutput, investorStageInput, investorStageOutput, investorImportInput, investorImportOutput, investorIdsInput, investorQueuedOutput } from "../investors/investors.contracts";
 import { meetingNotesImportInput, meetingNotesImportOutput, followUpsInput, followUpsOutput, followUpDecideInput, followUpDecideOutput, rereadOutput, incomingNotesInput, incomingNotesOutput, incomingNoteFileInput, incomingNoteFileOutput, incomingNoteIdInput, incomingNoteStatusOutput } from "../meeting-notes/meeting-notes.contracts";
 import { nextMeetingsOutput, upcomingMeetingsInput, upcomingMeetingsOutput, prepareMeetingInput, prepareMeetingOutput } from "../meetings/meetings.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
@@ -632,6 +633,34 @@ const appRouter = t.router({
       .input(calendarEventInput)
       .output(calendarEventOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  investors: t.router({
+    fundraise: publicProcedure
+      .output(fundraiseGetOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    saveFundraise: publicProcedure
+      .input(fundraiseSaveInput)
+      .output(fundraiseOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    list: publicProcedure
+      .input(investorListInput)
+      .output(investorListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setStage: publicProcedure
+      .input(investorStageInput)
+      .output(investorStageOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    import: publicProcedure
+      .input(investorImportInput)
+      .output(investorImportOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    research: publicProcedure
+      .input(investorIdsInput)
+      .output(investorQueuedOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    findMore: publicProcedure
+      .output(investorQueuedOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   meetingNotes: t.router({
     import: publicProcedure

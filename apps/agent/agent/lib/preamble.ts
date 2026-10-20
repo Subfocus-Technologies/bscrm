@@ -11,6 +11,7 @@ import {
 	recentDecisions,
 } from "./business-filing-learning";
 import { capabilitiesMarkdown } from "./capabilities";
+import { investorPreamble } from "./investors";
 import { meetingNotesMarkdown } from "./meeting-notes";
 import { identity, usMarkdown, type WorkspaceIdentity } from "./workspace";
 
@@ -22,6 +23,8 @@ export type Opened = {
 	/** Set only for a `field-backfill` task — the custom field key(s) still blank on this record. */
 	fieldKeys?: string[] | null;
 	activityId?: string | null;
+	fundraiseId?: string | null;
+	investorId?: string | null;
 };
 
 export type Preamble = {
@@ -38,6 +41,12 @@ export async function sessionPreamble(
 	opened: Opened,
 ): Promise<Preamble> {
 	if (opened.kind === "workspace-profile") return workspacePreamble();
+	if (
+		opened.kind === "investor-discovery" ||
+		opened.kind === "investor-research"
+	) {
+		return investorSessionPreamble(opened);
+	}
 	const preamble = await recordPreamble(record, opened);
 
 	if (opened.kind === "meeting-notes" && opened.activityId) {
@@ -55,6 +64,25 @@ export async function sessionPreamble(
 			await listFilingBusinesses(),
 			await recentDecisions(),
 		)}\n\n${preamble.markdown}`,
+	};
+}
+
+async function investorSessionPreamble(opened: Opened): Promise<Preamble> {
+	const markdown = await investorPreamble(
+		opened.kind ?? "",
+		opened.fundraiseId ?? null,
+		opened.investorId ?? null,
+	);
+
+	return {
+		markdown: [
+			markdown ??
+				"## This session\n\nThe fundraise or investor this task names is gone. Stop and say so.",
+			await composeClosing(await identity()),
+		]
+			.filter(Boolean)
+			.join("\n\n"),
+		focus: {},
 	};
 }
 

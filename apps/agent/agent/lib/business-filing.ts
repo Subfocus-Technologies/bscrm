@@ -7,9 +7,9 @@ import {
 	type FilingRecord,
 	fileRecord,
 	followCompany,
-	nextFilingDayStart,
 	recordColumn,
 } from "@crm/db/business-filing";
+import { nextWorkspaceDayStart } from "@crm/db/day";
 import { readBusinessFilingDailyLimit } from "@crm/db/settings";
 import type { CrmEventTask } from "@crm/validation/agent-events";
 import {
@@ -328,7 +328,7 @@ export async function preflightFiling(
 	if (used >= limit) {
 		return {
 			kind: "deferred",
-			until: nextFilingDayStart(now),
+			until: nextWorkspaceDayStart(now),
 			reason: `Waiting for tomorrow: today's limit of ${limit} AI filings is used up.`,
 		};
 	}

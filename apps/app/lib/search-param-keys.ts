@@ -30,6 +30,10 @@ export const SEARCH_PARAM = {
 	meetingNotes: {
 		view: "view",
 	},
+	investors: {
+		section: "section",
+		stage: "step",
+	},
 } as const;
 
 export const RESERVED_SEARCH_PARAM_KEYS: ReadonlySet<string> = new Set(
