@@ -1,6 +1,7 @@
 import { INVESTOR_KINDS, INVESTORS } from "@crm/validation/investors";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { investorFocus } from "../lib/focus";
 import { scoreInvestor } from "../lib/investors";
 
 const text = z.string().trim().max(INVESTORS.text.shortMaxLength);
@@ -9,7 +10,10 @@ const pounds = z.number().min(0).nullable().default(null);
 export default defineTool({
 	description: `Record how well an investor fits our raise, in an investor-research task. Give a verdict for every criterion id in the investor profile: met or not, a short note on why, and the URL you read for each one you mark as met. The tool works out the 0 to 100 fit score from the profile's weights; a met "rules them out" criterion makes it 0. You may also fill facts that are still blank, but only from what you read. Record an email only when the investor publishes it.`,
 	inputSchema: z.object({
-		investorId: z.string(),
+		investorId: z
+			.string()
+			.optional()
+			.describe("Leave out to score the investor this task is about."),
 		summary: z
 			.string()
 			.trim()
@@ -49,9 +53,21 @@ export default defineTool({
 			.default({}),
 	}),
 	async execute({ investorId, summary, criteria, facts }) {
+		const focused = investorFocus().investorId;
+		const target = focused ?? investorId;
+		if (!target) {
+			return { ok: false as const, reason: "Name the investor to score." };
+		}
+		if (focused && investorId && investorId !== focused) {
+			return {
+				ok: false as const,
+				reason: `This task is about investor ${focused}; score that one.`,
+			};
+		}
+
 		const { chequeMinPounds, chequeMaxPounds, ...rest } = facts;
 		return scoreInvestor({
-			investorId,
+			investorId: target,
 			summary,
 			reasons: criteria,
 			facts: {

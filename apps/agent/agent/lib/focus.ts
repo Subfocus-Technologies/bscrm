@@ -6,6 +6,8 @@ export const focus = defineState("crm.focus", () => ({
 	companyId: null as string | null,
 	sessionId: null as string | null,
 	taskKind: null as string | null,
+	fundraiseId: null as string | null,
+	investorId: null as string | null,
 	spent: 0,
 	budget: 4,
 	exhausted: false,
@@ -35,6 +37,8 @@ export function focusOn(input: {
 	companyId?: string | null;
 	sessionId?: string | null;
 	taskKind?: string | null;
+	fundraiseId?: string | null;
+	investorId?: string | null;
 }): void {
 	focus.update((current) => ({
 		...current,
@@ -42,7 +46,23 @@ export function focusOn(input: {
 		companyId: input.companyId ?? current.companyId,
 		sessionId: input.sessionId ?? current.sessionId,
 		taskKind: input.taskKind ?? current.taskKind,
+		fundraiseId: input.fundraiseId ?? current.fundraiseId,
+		investorId: input.investorId ?? current.investorId,
 	}));
+}
+
+export type InvestorFocus = {
+	fundraiseId: string | null;
+	investorId: string | null;
+};
+
+export function investorFocus(): InvestorFocus {
+	try {
+		const state = focus.get();
+		return { fundraiseId: state.fundraiseId, investorId: state.investorId };
+	} catch {
+		return { fundraiseId: null, investorId: null };
+	}
 }
 
 export function spend(units = 1): { ok: true } | { ok: false; reason: string } {

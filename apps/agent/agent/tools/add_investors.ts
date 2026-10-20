@@ -1,20 +1,14 @@
-import {
-	INVESTOR_KINDS,
-	INVESTORS,
-	investorTaskPayload,
-} from "@crm/validation/investors";
+import { INVESTOR_KINDS, INVESTORS } from "@crm/validation/investors";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { investorFocus } from "../lib/focus";
 import { addDiscoveredInvestors } from "../lib/investors";
 
 const text = z.string().trim().max(INVESTORS.text.shortMaxLength);
 
 export default defineTool({
-	description: `Add investors you found to our fundraise pipeline, for a person to approve. Use it in an investor-discovery task. Each investor needs a real name and at least one source URL you read that shows they invest at our stage or in our sector. Never invent an email address or a LinkedIn URL. Investors we already have are skipped and reported back. Each new investor is researched and scored separately afterwards.`,
+	description: `Add investors you found to our fundraise pipeline, for a person to approve. Use it in an investor-discovery task; it adds them to that task's raise, so you pass no id. Each investor needs a real name and at least one source URL you read that shows they invest at our stage or in our sector. Never invent an email address or a LinkedIn URL. Investors we already have are skipped and reported back. Each new investor is researched and scored separately afterwards.`,
 	inputSchema: z.object({
-		fundraiseId: z
-			.string()
-			.describe("The fundraise id from your instructions."),
 		investors: z
 			.array(
 				z.object({
@@ -45,10 +39,15 @@ export default defineTool({
 			.min(1)
 			.max(INVESTORS.discovery.perRun),
 	}),
-	async execute({ fundraiseId, investors }) {
-		const parsed = investorTaskPayload.safeParse({ fundraiseId });
-		if (!parsed.success)
-			return { ok: false as const, reason: "Give the fundraise id." };
+	async execute({ investors }) {
+		const { fundraiseId } = investorFocus();
+		if (!fundraiseId) {
+			return {
+				ok: false as const,
+				reason:
+					"This session is not an investor search, so there is no raise to add to.",
+			};
+		}
 
 		const result = await addDiscoveredInvestors(
 			fundraiseId,

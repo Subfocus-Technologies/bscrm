@@ -106,7 +106,7 @@ export async function investorPreamble(
 		const known = await knownNames(fundraise.id);
 		return [
 			"**This is an investor-discovery task.** Find UK investors we have not met who could back this raise: angel groups and networks, individual angels who invest at pre-seed, and pre-seed or seed venture firms. Prefer ones that fit the must-haves below.",
-			`Search the web, read what you find, and call \`add_investors\` with up to ${INVESTORS.discovery.perRun} of the best. Every investor needs at least one source URL that shows they invest at our stage or in our sector. Use real names only. Never invent an email address. Skip anyone in the list of investors we already have.`,
+			`Search the web, read what you find, and call \`add_investors\` with up to ${INVESTORS.discovery.perRun} of the best. The tool already knows which raise this is, so you pass no id. Every investor needs at least one source URL that shows they invest at our stage or in our sector. Use real names only. Never invent an email address. Skip anyone in the list of investors we already have.`,
 			fundraiseMarkdown(fundraise),
 			known.length > 0
 				? `## Investors we already have\n${known.join("; ")}`
@@ -139,7 +139,7 @@ export async function investorPreamble(
 	].filter(Boolean);
 
 	return [
-		`**This is an investor-research task.** Research the investor below and score how well they fit our raise. Read their website and recent deals, and their LinkedIn when there is one. Then call \`score_investor\` once, with investorId \`${investor.id}\`, a verdict for every criterion id in the profile, and a source URL for each criterion you mark as met. Fill in missing facts (type, website, LinkedIn, location, sectors, stages, cheque size, thesis) only from what you read. Record an email address only when the investor publishes it.`,
+		`**This is an investor-research task.** Research the investor below and score how well they fit our raise. Read their website and recent deals, and their LinkedIn when there is one. Then call \`score_investor\` once with a verdict for every criterion id in the profile, and a source URL for each criterion you mark as met. Fill in missing facts (type, website, LinkedIn, location, sectors, stages, cheque size, thesis) only from what you read. Record an email address only when the investor publishes it.`,
 		`## The investor\n${facts.join("\n")}`,
 		fundraiseMarkdown(fundraise),
 	].join("\n\n");

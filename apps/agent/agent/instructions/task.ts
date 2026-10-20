@@ -57,7 +57,13 @@ export default defineDynamic({
 				},
 			);
 
-			focusOn({ ...focus, sessionId: ctx.session.id, taskKind: kind });
+			focusOn({
+				...focus,
+				sessionId: ctx.session.id,
+				taskKind: kind,
+				fundraiseId,
+				investorId,
+			});
 
 			return defineInstructions({
 				markdown: `${RESEARCH_INSTRUCTIONS}\n\n${markdown}`,
