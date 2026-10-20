@@ -327,26 +327,30 @@ describe("the meeting notes inbox", () => {
 		);
 	});
 
-	it("files a shared meeting's notes on a record only once", async () => {
+	it("files a shared meeting once and clears the other copies", async () => {
 		const docUrl = `https://docs.google.com/document/d/once-${suffix}`;
 		await incoming.receive(note(`Kick-off ${suffix}`, { docUrl }));
 		await incoming.receive(
 			note(`Kick-off ${suffix}`, { docUrl, mailboxUserId: otherUserId }),
 		);
-		const [mine, theirs] = await Promise.all(
-			[userId, otherUserId].map((mailboxUserId) =>
-				db.incomingMeetingNote.findFirstOrThrow({
-					where: { mailboxUserId },
-					select: { id: true },
-				}),
-			),
+		const theirs = await db.incomingMeetingNote.findFirstOrThrow({
+			where: { mailboxUserId: otherUserId },
+			select: { id: true },
+		});
+		const mine = (await incoming.list({ view: "NEW", page: 1 }, userId))
+			.items[0];
+
+		const { activityId } = await incoming.file(
+			{ id: mine?.id ?? "", companyId },
+			userId,
 		);
 
-		await incoming.file({ id: mine?.id ?? "", companyId }, userId);
-
-		await expect(
-			incoming.file({ id: theirs?.id ?? "", companyId }, otherUserId),
-		).rejects.toThrow("Sayu already filed the notes from this meeting.");
+		const left = await incoming.list({ view: "NEW", page: 1 }, otherUserId);
+		expect(left.items).toEqual([]);
+		expect(
+			await incoming.file({ id: theirs.id, companyId }, otherUserId),
+		).toEqual({ activityId });
+		expect(read).toEqual([activityId]);
 	});
 });
 

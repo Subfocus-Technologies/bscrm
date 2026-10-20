@@ -246,8 +246,10 @@ Cluely or any note taker, and proposes to-dos and next steps.
   `meetingNotes.import` path, so only then does it reach a shared record and
   does the agent read it. Gemini sends a copy to every invited guest, so each
   guest keeps their own copy. Within one mailbox a second email with the same
-  Google Doc or calendar event is stored as `DUPLICATE`. Filing refuses a
-  meeting someone has already filed. The doc link comes from the email's HTML part, and
+  Google Doc or calendar event is stored as `DUPLICATE`. Filing a
+  shared meeting moves every other attendee's copy out of their inbox, and a copy
+  of a meeting that is already filed links to that entry, so it reaches a record
+  once. The doc link comes from the email's HTML part, and
   `geminiNoteBody` drops Google's header and footer.
 - **Notes are re-read when the reader improves.** Each row records the
   `parserVersion` that read it. A `NEW` row older than

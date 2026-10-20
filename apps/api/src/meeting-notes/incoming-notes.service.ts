@@ -286,7 +286,11 @@ export class IncomingNotesService {
 		record: NoteRecord,
 		userId: string,
 	): Promise<string> {
-		await this.refuseSecondFiling(id, userId);
+		const sameMeeting = await this.sameMeeting(id, userId);
+		if (sameMeeting) {
+			const activityId = await this.filedElsewhere(id, userId, sameMeeting);
+			if (activityId) return activityId;
+		}
 
 		const claimed = await this.db.incomingMeetingNote.updateMany({
 			where: {
@@ -336,6 +340,13 @@ export class IncomingNotesService {
 				data: { activityId },
 			});
 
+			if (sameMeeting) {
+				await this.db.incomingMeetingNote.updateMany({
+					where: { ...sameMeeting, status: IncomingMeetingNoteStatus.NEW },
+					data: { status: IncomingMeetingNoteStatus.DUPLICATE },
+				});
+			}
+
 			return activityId;
 		} catch (error) {
 			await this.db.incomingMeetingNote.update({
@@ -350,32 +361,56 @@ export class IncomingNotesService {
 		}
 	}
 
-	private async refuseSecondFiling(id: string, userId: string): Promise<void> {
+	private async sameMeeting(
+		id: string,
+		userId: string,
+	): Promise<Prisma.IncomingMeetingNoteWhereInput | null> {
 		const note = await this.db.incomingMeetingNote.findFirst({
 			where: { id, mailboxUserId: userId },
 			select: { docUrl: true, calendarEventId: true },
 		});
-		if (!note) return;
+		if (!note) return null;
 
-		const sameMeeting: Prisma.IncomingMeetingNoteWhereInput[] = [
+		const matches: Prisma.IncomingMeetingNoteWhereInput[] = [
 			note.docUrl ? { docUrl: note.docUrl } : null,
 			note.calendarEventId ? { calendarEventId: note.calendarEventId } : null,
 		].filter((condition) => condition !== null);
-		if (sameMeeting.length === 0) return;
 
-		const filed = await this.db.incomingMeetingNote.findFirst({
+		return matches.length > 0 ? { id: { not: id }, OR: matches } : null;
+	}
+
+	private async filedElsewhere(
+		id: string,
+		userId: string,
+		sameMeeting: Prisma.IncomingMeetingNoteWhereInput,
+	): Promise<string | null> {
+		const twin = await this.db.incomingMeetingNote.findFirst({
 			where: {
-				id: { not: id },
+				...sameMeeting,
 				status: IncomingMeetingNoteStatus.FILED,
-				OR: sameMeeting,
+				activityId: { not: null },
 			},
-			select: { filedBy: { select: { name: true } } },
+			select: { activityId: true },
 		});
-		if (!filed) return;
+		if (!twin?.activityId) return null;
 
-		throw new ConflictException(
-			`${filed.filedBy?.name ?? "Someone"} already filed the notes from this meeting.`,
-		);
+		const settled = await this.db.incomingMeetingNote.updateMany({
+			where: {
+				id,
+				mailboxUserId: userId,
+				status: {
+					in: [
+						IncomingMeetingNoteStatus.NEW,
+						IncomingMeetingNoteStatus.IGNORED,
+						IncomingMeetingNoteStatus.DUPLICATE,
+					],
+				},
+			},
+			data: { status: IncomingMeetingNoteStatus.DUPLICATE },
+		});
+		if (settled.count === 0) await this.conflict(id, userId);
+
+		return twin.activityId;
 	}
 
 	private async conflict(id: string, userId: string): Promise<never> {

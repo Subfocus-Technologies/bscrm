@@ -29,9 +29,8 @@ export default function MeetingNotesPage({
 				<PageShellHeading>
 					<PageShellTitle>Meeting notes</PageShellTitle>
 					<PageShellDescription>
-						Gemini notes from everyone's Gmail. Notes from a meeting with
-						someone in the CRM go on their record by themselves; file the rest
-						here.
+						Gemini notes from your Gmail. Only you can see them, and none
+						reaches a record until you allow and file it.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
