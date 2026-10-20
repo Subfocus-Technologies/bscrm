@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
+import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import type { InvestorImportRow } from "../src/investors/investors.contracts";
 import { InvestorsService } from "../src/investors/investors.service";
@@ -215,5 +216,56 @@ describe("the investor pipeline", () => {
 		await saveProfile();
 		expect(await investors.findMore(userId)).toEqual({ queued: 1 });
 		expect(discovery).toHaveLength(1);
+	});
+
+	it("reports the latest agent search and why it stopped", async () => {
+		const fundraise = await saveProfile();
+		const listFirst = () =>
+			investors.list({
+				stage: "TO_APPROVE",
+				kinds: [],
+				q: "",
+				sort: "fit",
+				page: 1,
+			});
+		await db.agentTask.deleteMany({
+			where: { kind: "investor-discovery", subject: fundraise.id },
+		});
+
+		expect((await listFirst()).search).toBeNull();
+
+		await db.agentTask.create({
+			data: {
+				kind: "investor-discovery",
+				reason: "The daily search for new investors",
+				dueAt: new Date(),
+				subject: fundraise.id,
+				attempts: 3,
+				finishedAt: new Date(),
+				outcome: RETIRED_OUTCOME,
+			},
+		});
+		const failed = (await listFirst()).search;
+		expect(failed?.state).toBe("failed");
+		expect(failed?.attempts).toBe(3);
+		expect(failed?.outcome).toBe(RETIRED_OUTCOME);
+
+		await db.agentTask.create({
+			data: {
+				kind: "investor-discovery",
+				reason: "A person asked the agent to find more investors",
+				dueAt: new Date(),
+				subject: fundraise.id,
+				leasedUntil: new Date(Date.now() + 60_000),
+				startedAt: new Date(),
+				attempts: 1,
+				createdAt: new Date(Date.now() + 1_000),
+			},
+		});
+		expect((await listFirst()).search?.state).toBe("running");
+
+		await db.agentTask.deleteMany({
+			where: { kind: "investor-discovery", subject: fundraise.id },
+		});
 	});
 });

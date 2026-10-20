@@ -108,12 +108,36 @@ const investorRowOutput = z.object({
 
 export type InvestorRow = z.infer<typeof investorRowOutput>;
 
+const INVESTOR_SEARCH_STATES = [
+	"waiting",
+	"running",
+	"finished",
+	"failed",
+] as const;
+
+const investorSearchOutput = z.object({
+	state: z.enum(INVESTOR_SEARCH_STATES),
+	reason: z.string(),
+	queuedAt: z.string(),
+	startedAt: z.string().nullable(),
+	finishedAt: z.string().nullable(),
+	attempts: z.number(),
+	outcome: z.string().nullable(),
+});
+
+export type InvestorSearch = z.infer<typeof investorSearchOutput>;
+
 export const investorListOutput = z.object({
 	items: z.array(investorRowOutput),
 	total: z.number(),
 	pageSize: z.number(),
 	counts: z.record(z.enum(INVESTOR_STAGES), z.number()),
-	research: z.object({ usedToday: z.number(), dailyLimit: z.number() }),
+	research: z.object({
+		usedToday: z.number(),
+		dailyLimit: z.number(),
+		waiting: z.number(),
+	}),
+	search: investorSearchOutput.nullable(),
 });
 
 export type InvestorList = z.infer<typeof investorListOutput>;

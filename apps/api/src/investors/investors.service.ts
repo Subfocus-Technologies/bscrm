@@ -1,4 +1,5 @@
 import type { Db, Prisma } from "@crm/db";
+import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import { addInvestors, investorResearchRunsToday } from "@crm/db/investors";
 import {
 	INVESTOR_STAGES,
@@ -22,6 +23,7 @@ import type {
 	InvestorList,
 	InvestorListInput,
 	InvestorRow,
+	InvestorSearch,
 	InvestorStageInput,
 } from "./investors.contracts";
 
@@ -186,7 +188,8 @@ export class InvestorsService {
 				total: 0,
 				pageSize: INVESTORS.pageSize,
 				counts: empty,
-				research: { usedToday: 0, dailyLimit: 0 },
+				research: { usedToday: 0, dailyLimit: 0, waiting: 0 },
+				search: null,
 			};
 		}
 
@@ -208,22 +211,27 @@ export class InvestorsService {
 		} satisfies Prisma.InvestorWhereInput;
 		const where = { ...base, stage: input.stage };
 
-		const [rows, total, grouped, usedToday] = await Promise.all([
-			this.db.investor.findMany({
-				where,
-				orderBy: ORDER_BY[input.sort],
-				skip: (input.page - 1) * INVESTORS.pageSize,
-				take: INVESTORS.pageSize,
-				select: INVESTOR_SELECT,
-			}),
-			this.db.investor.count({ where }),
-			this.db.investor.groupBy({
-				by: ["stage"],
-				where: base,
-				_count: { _all: true },
-			}),
-			investorResearchRunsToday(this.db),
-		]);
+		const [rows, total, grouped, usedToday, waiting, lastSearch] =
+			await Promise.all([
+				this.db.investor.findMany({
+					where,
+					orderBy: ORDER_BY[input.sort],
+					skip: (input.page - 1) * INVESTORS.pageSize,
+					take: INVESTORS.pageSize,
+					select: INVESTOR_SELECT,
+				}),
+				this.db.investor.count({ where }),
+				this.db.investor.groupBy({
+					by: ["stage"],
+					where: base,
+					_count: { _all: true },
+				}),
+				investorResearchRunsToday(this.db),
+				this.db.agentTask.count({
+					where: { kind: "investor-research", finishedAt: null },
+				}),
+				this.latestSearch(fundraise.id),
+			]);
 
 		const researching = new Set(
 			(
@@ -251,7 +259,9 @@ export class InvestorsService {
 			research: {
 				usedToday,
 				dailyLimit: fundraise.researchDailyLimit,
+				waiting,
 			},
+			search: lastSearch,
 		};
 	}
 
@@ -358,6 +368,44 @@ export class InvestorsService {
 		});
 
 		return { queued: queued ? 1 : 0 };
+	}
+
+	private async latestSearch(
+		fundraiseId: string,
+	): Promise<InvestorSearch | null> {
+		const task = await this.db.agentTask.findFirst({
+			where: { kind: "investor-discovery", subject: fundraiseId },
+			orderBy: { createdAt: "desc" },
+			select: {
+				reason: true,
+				createdAt: true,
+				startedAt: true,
+				finishedAt: true,
+				leasedUntil: true,
+				attempts: true,
+				outcome: true,
+			},
+		});
+		if (!task) return null;
+
+		const now = Date.now();
+		const state: InvestorSearch["state"] = task.finishedAt
+			? task.outcome === RETIRED_OUTCOME
+				? "failed"
+				: "finished"
+			: task.leasedUntil && task.leasedUntil.getTime() > now
+				? "running"
+				: "waiting";
+
+		return {
+			state,
+			reason: task.reason,
+			queuedAt: task.createdAt.toISOString(),
+			startedAt: task.startedAt?.toISOString() ?? null,
+			finishedAt: task.finishedAt?.toISOString() ?? null,
+			attempts: task.attempts,
+			outcome: task.outcome,
+		};
 	}
 
 	private async requireFundraise(): Promise<FundraiseOutput> {

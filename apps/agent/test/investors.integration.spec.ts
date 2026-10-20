@@ -39,8 +39,22 @@ const PROFILE = {
 };
 
 async function clean() {
+	const ours = await db.fundraise.findMany({
+		where: { createdAt: { gte: LATER_THAN_OTHER_SUITES } },
+		select: { id: true, investors: { select: { id: true } } },
+	});
+	const subjects = ours.flatMap((fundraise) => [
+		fundraise.id,
+		...fundraise.investors.map((investor) => investor.id),
+	]);
 	await db.agentTask.deleteMany({
-		where: { kind: { in: ["investor-research", "investor-discovery"] } },
+		where: {
+			kind: { in: ["investor-research", "investor-discovery"] },
+			OR: [
+				{ subject: { in: subjects } },
+				{ subject: { startsWith: "spent-" } },
+			],
+		},
 	});
 	await db.fundraise.deleteMany({
 		where: { createdAt: { gte: LATER_THAN_OTHER_SUITES } },
@@ -95,7 +109,12 @@ describe("investors the agent finds", () => {
 			alreadyKnown: ["London Angels Network"],
 		});
 		expect(
-			await db.agentTask.count({ where: { kind: "investor-research" } }),
+			await db.agentTask.count({
+				where: {
+					kind: "investor-research",
+					payload: { path: ["fundraiseId"], equals: fundraiseId },
+				},
+			}),
 		).toBe(2);
 	});
 });

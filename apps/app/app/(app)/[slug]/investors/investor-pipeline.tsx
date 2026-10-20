@@ -56,6 +56,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useQueryStates } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
+import { LocalRelativeTime } from "@/components/local-date-time";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -297,6 +298,71 @@ function RowActions({ investor }: { investor: Investor }) {
 	);
 }
 
+type AgentSearch = NonNullable<RouterOutputs["investors"]["list"]["search"]>;
+
+function SearchStatus({
+	search,
+	waiting,
+}: {
+	search: AgentSearch | null;
+	waiting: number;
+}) {
+	const research =
+		waiting > 0
+			? ` ${waiting} investor${waiting === 1 ? "" : "s"} waiting to be researched.`
+			: "";
+
+	if (!search) {
+		return (
+			<p className="text-muted-foreground text-xs">
+				The agent has not searched for investors yet.{research}
+			</p>
+		);
+	}
+
+	const when =
+		search.state === "finished" || search.state === "failed"
+			? search.finishedAt
+			: search.state === "running"
+				? search.startedAt
+				: search.queuedAt;
+	const label = {
+		waiting: "Agent search waiting to start",
+		running: "Agent search running, started",
+		finished: "Last agent search finished",
+		failed: "Last agent search failed",
+	}[search.state];
+
+	return (
+		<div className="flex flex-col gap-0.5 rounded-lg border px-3 py-2 text-xs">
+			<span className="flex flex-wrap items-center gap-1.5">
+				{search.state === "running" || search.state === "waiting" ? (
+					<Spinner />
+				) : null}
+				<span className="font-medium">{label}</span>
+				{when ? (
+					<span className="text-muted-foreground">
+						<LocalRelativeTime date={when} />
+					</span>
+				) : null}
+				{search.attempts > 1 ? (
+					<span className="text-muted-foreground">
+						after {search.attempts} tries
+					</span>
+				) : null}
+			</span>
+			{search.outcome ? (
+				<span className="line-clamp-3 text-muted-foreground">
+					{search.outcome}
+				</span>
+			) : null}
+			{research ? (
+				<span className="text-muted-foreground">{research.trim()}</span>
+			) : null}
+		</div>
+	);
+}
+
 function FindMore() {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
@@ -347,7 +413,9 @@ export function InvestorPipeline({
 		...trpc.investors.list.queryOptions(listInputOf(params)),
 		placeholderData: (previous) => previous,
 		refetchInterval: (query) =>
-			query.state.data?.items.some((item) => item.researching)
+			query.state.data?.items.some((item) => item.researching) ||
+			query.state.data?.search?.state === "running" ||
+			query.state.data?.search?.state === "waiting"
 				? RESEARCH_POLL_MS
 				: false,
 	});
@@ -482,6 +550,10 @@ export function InvestorPipeline({
 					</div>
 				) : null}
 			</div>
+
+			{data ? (
+				<SearchStatus search={data.search} waiting={data.research.waiting} />
+			) : null}
 
 			{list.isPending ? (
 				<div className="flex justify-center py-12">
