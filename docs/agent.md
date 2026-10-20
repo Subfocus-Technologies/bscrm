@@ -273,8 +273,17 @@ the tools `add_investors` and `score_investor` are thin.
   the next UK day once `Fundraise.researchDailyLimit` sessions have started.
 - **The tool computes the score, not the model.** `score_investor` takes a
   verdict per criterion; `fitScore` (`@crm/validation/investors`) turns the met
-  weights into 0 to 100, and a met "rules them out" criterion makes it 0. A met
-  criterion without a source URL is refused. Facts fill only blank fields.
+  weights into 0 to 100, and a met "rules them out" criterion makes it 0. A
+  missed must-have caps the score at `INVESTORS.scoring.mustMissCap`. A met
+  criterion needs a source URL and the words quoted from it, or the tool
+  refuses it, and the brief tells the model a generalist fund does not meet a
+  sector criterion. Facts fill only blank fields.
+- **The raise comes from the session, not the model.** The task's
+  `fundraiseId` and `investorId` sit in the session focus (`lib/focus.ts`);
+  `add_investors` takes no id and `score_investor` scores the task's investor.
+- **A finished task's outcome is the agent's last message.** The CRM channel
+  keeps each task session's last message and stores it on close instead of
+  "ran", so the Investors tab can say why a search added no one.
 - **Duplicates are one key per investor.** `investorDedupeKey` prefers the
   LinkedIn path, then email, then the website domain (not for angels), then name
   and firm. Two lists that name the same investor differently can still both

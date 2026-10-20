@@ -42,7 +42,7 @@ export const DISPATCH = {
 		retire: 100,
 	},
 
-	outcome: { rememberedMessages: 1000, maxLength: 500 },
+	outcome: { rememberedMessages: 1000, maxLength: 2000 },
 
 	sweep: {
 		timeoutMs: 4 * MINUTE_MS,

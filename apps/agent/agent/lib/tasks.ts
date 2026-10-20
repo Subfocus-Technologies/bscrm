@@ -102,7 +102,7 @@ export async function completeTask(
 		where: { id: taskId, finishedAt: null },
 		data: {
 			finishedAt: new Date(),
-			outcome: outcome.slice(0, 500),
+			outcome: outcome.slice(0, DISPATCH.outcome.maxLength),
 			sessionId: sessionId || undefined,
 		},
 	});

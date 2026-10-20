@@ -21,6 +21,7 @@ import {
 	InputGroupAddon,
 	InputGroupInput,
 } from "@crm/ui/components/input-group";
+import { Markdown } from "@crm/ui/components/markdown";
 import {
 	Popover,
 	PopoverContent,
@@ -180,6 +181,12 @@ function FitCell({ investor }: { investor: Investor }) {
 								</span>
 								<span className="flex-1">
 									{reason.note}
+									{reason.quote ? (
+										<span className="text-muted-foreground italic">
+											{" "}
+											“{reason.quote}”
+										</span>
+									) : null}
 									{reason.sourceUrl ? (
 										<>
 											{" "}
@@ -298,6 +305,25 @@ function RowActions({ investor }: { investor: Investor }) {
 	);
 }
 
+function SearchSummary({ outcome }: { outcome: string }) {
+	const [open, setOpen] = useState(false);
+
+	return (
+		<div className="flex flex-col items-start gap-1">
+			{open ? (
+				<Markdown className="text-muted-foreground">{outcome}</Markdown>
+			) : (
+				<span className="line-clamp-1 text-muted-foreground">
+					{outcome.replace(/[#*|`_-]+/g, " ").replace(/\s+/g, " ")}
+				</span>
+			)}
+			<Button variant="link" size="xs" onClick={() => setOpen(!open)}>
+				{open ? "Hide the agent's summary" : "Read the agent's summary"}
+			</Button>
+		</div>
+	);
+}
+
 type AgentSearch = NonNullable<RouterOutputs["investors"]["list"]["search"]>;
 
 function SearchStatus({
@@ -351,11 +377,7 @@ function SearchStatus({
 					</span>
 				) : null}
 			</span>
-			{search.outcome ? (
-				<span className="line-clamp-3 text-muted-foreground">
-					{search.outcome}
-				</span>
-			) : null}
+			{search.outcome ? <SearchSummary outcome={search.outcome} /> : null}
 			{research ? (
 				<span className="text-muted-foreground">{research.trim()}</span>
 			) : null}
