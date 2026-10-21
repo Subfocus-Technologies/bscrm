@@ -16,6 +16,7 @@ import {
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { decimalFromCents, fromCents, toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
+import { InvestorOutreachService } from "./investor-outreach.service";
 import type {
 	FundraiseOutput,
 	FundraiseSaveInput,
@@ -123,6 +124,7 @@ export class InvestorsService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
+		private readonly outreach: InvestorOutreachService,
 	) {}
 
 	async fundraise(): Promise<FundraiseOutput | null> {
@@ -278,10 +280,17 @@ export class InvestorsService {
 			},
 		});
 
+		const fundraise =
+			input.stage === "APPROVED" ? await this.fundraise() : null;
+		const drafting = fundraise
+			? await this.outreach.queueFirstDrafts(fundraise.id, input.ids)
+			: 0;
+
 		this.logger.log({
 			message: "Investors moved",
 			stage: input.stage,
 			updated: count,
+			drafting,
 			userId: actingUserId,
 		});
 

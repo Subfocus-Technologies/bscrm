@@ -195,7 +195,11 @@ export function useCrmCache(): CrmCache {
 
 		investors: (options) =>
 			run(
-				[trpc.investors.fundraise.queryKey(), trpc.investors.list.queryKey()],
+				[
+					trpc.investors.fundraise.queryKey(),
+					trpc.investors.list.queryKey(),
+					trpc.investors.outreachQueue.queryKey(),
+				],
 				[],
 				options,
 			),

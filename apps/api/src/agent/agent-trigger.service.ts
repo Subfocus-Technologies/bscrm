@@ -3,7 +3,7 @@ import { PRIORITY } from "@crm/db/agent-tasks";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { RECORD_ID_COLUMNS } from "@crm/db/fields";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
-import { queueInvestorResearchTasks } from "@crm/db/investors";
+import { queueInvestorTasks } from "@crm/db/investors";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { INVESTORS, type InvestorTaskPayload } from "@crm/validation/investors";
 import { Injectable, Logger } from "@nestjs/common";
@@ -397,7 +397,8 @@ export class AgentTriggerService {
 	): Promise<number> {
 		if (investorIds.length === 0) return 0;
 
-		const count = await queueInvestorResearchTasks(this.db, {
+		const count = await queueInvestorTasks(this.db, {
+			kind: "investor-research",
 			fundraiseId,
 			investorIds,
 			reason,
@@ -407,6 +408,31 @@ export class AgentTriggerService {
 		this.logger.log({
 			message: "Agent task queued",
 			kind: "investor-research",
+			requested: investorIds.length,
+			queued: count,
+		});
+
+		if (count > 0) this.poke();
+
+		return count;
+	}
+
+	async investorOutreachRequested(
+		fundraiseId: string,
+		investorIds: readonly string[],
+		reason: string,
+	): Promise<number> {
+		const count = await queueInvestorTasks(this.db, {
+			kind: "investor-outreach",
+			fundraiseId,
+			investorIds,
+			reason,
+			budget: INVESTORS.outreach.draftBudget,
+		});
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "investor-outreach",
 			requested: investorIds.length,
 			queued: count,
 		});

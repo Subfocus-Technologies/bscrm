@@ -16,6 +16,7 @@ import {
 	EmptyTitle,
 } from "@crm/ui/components/empty";
 import { Icon } from "@crm/ui/components/icon";
+import { Input } from "@crm/ui/components/input";
 import {
 	InputGroup,
 	InputGroupAddon,
@@ -259,6 +260,65 @@ function cheque(investor: Investor): string | null {
 	return null;
 }
 
+function AddEmail({ investor }: { investor: Investor }) {
+	const trpc = useTRPC();
+	const cache = useCrmCache();
+	const [open, setOpen] = useState(false);
+	const [address, setAddress] = useState("");
+	const save = useMutation(
+		trpc.investors.setAddress.mutationOptions({
+			onSuccess: async (result) => {
+				await cache.investors();
+				setOpen(false);
+				toast.success(
+					result.queued > 0
+						? "Saved. The agent is drafting the first email."
+						: "Email address saved.",
+				);
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<Button size="xs" variant="outline">
+					Add email
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent align="end" className="w-72">
+				<form
+					className="flex flex-col gap-2"
+					onSubmit={(event) => {
+						event.preventDefault();
+						if (address.trim()) {
+							save.mutate({ investorId: investor.id, email: address.trim() });
+						}
+					}}
+				>
+					<Input
+						type="email"
+						autoFocus
+						value={address}
+						onChange={(event) => setAddress(event.target.value)}
+						placeholder="name@fund.com"
+						aria-label={`${investor.name}'s email address`}
+					/>
+					<Button
+						type="submit"
+						size="sm"
+						disabled={!address.trim() || save.isPending}
+					>
+						{save.isPending ? <Spinner /> : null}
+						Save
+					</Button>
+				</form>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
 function RowActions({ investor }: { investor: Investor }) {
 	const move = useStageMove();
 
@@ -285,23 +345,26 @@ function RowActions({ investor }: { investor: Investor }) {
 	}
 
 	return (
-		<Select
-			value={investor.stage}
-			onValueChange={(next) => {
-				if (isStage(next)) move.mutate({ ids: [investor.id], stage: next });
-			}}
-		>
-			<SelectTrigger size="sm" aria-label="Move to stage">
-				<SelectValue />
-			</SelectTrigger>
-			<SelectContent>
-				{INVESTOR_STAGES.map((stage) => (
-					<SelectItem key={stage} value={stage}>
-						{STAGE_LABEL[stage]}
-					</SelectItem>
-				))}
-			</SelectContent>
-		</Select>
+		<div className="flex items-center justify-end gap-1.5">
+			{investor.email ? null : <AddEmail investor={investor} />}
+			<Select
+				value={investor.stage}
+				onValueChange={(next) => {
+					if (isStage(next)) move.mutate({ ids: [investor.id], stage: next });
+				}}
+			>
+				<SelectTrigger size="sm" aria-label="Move to stage">
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent>
+					{INVESTOR_STAGES.map((stage) => (
+						<SelectItem key={stage} value={stage}>
+							{STAGE_LABEL[stage]}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+		</div>
 	);
 }
 

@@ -3,6 +3,7 @@ import {
 	GoogleSyncStatus,
 	type MailboxSyncModel as MailboxSync,
 } from "@crm/db";
+import { noticeInvestorReply } from "@crm/db/investors";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
@@ -239,6 +240,8 @@ export class GmailSyncService {
 			const parsed = this.parse(message.data);
 			if (!parsed) continue;
 
+			await this.noticeInvestorReply(row.userId, mailbox, message.data, parsed);
+
 			const stored = await this.threads.store(
 				row,
 				{ mailbox, origin: "gmail" },
@@ -249,6 +252,35 @@ export class GmailSyncService {
 		}
 
 		return { written, remaining };
+	}
+
+	private async noticeInvestorReply(
+		userId: string,
+		mailbox: string,
+		message: GmailMessage,
+		parsed: IncomingMessage,
+	): Promise<void> {
+		try {
+			const investorId = await noticeInvestorReply(this.db, {
+				userId,
+				mailbox,
+				threadId: message.threadId ?? null,
+				fromEmail: parsed.from.email,
+				at: parsed.sentAt,
+			});
+			if (investorId) {
+				this.logger.log({
+					message: "Investor replied",
+					investorId,
+					userId,
+				});
+			}
+		} catch (error) {
+			this.logger.error(
+				{ message: "Checking for an investor reply threw", userId },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
 	}
 
 	private parse(message: GmailMessage): IncomingMessage | null {

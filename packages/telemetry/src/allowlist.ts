@@ -117,6 +117,7 @@ export const AGENT_TOOLS = [
 	"add_investors",
 	"agent",
 	"archive_field",
+	"draft_investor_email",
 	"enrich_company",
 	"fetch_contact_photo",
 	"file_into_business",

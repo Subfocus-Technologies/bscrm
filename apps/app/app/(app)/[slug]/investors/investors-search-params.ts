@@ -7,7 +7,12 @@ import {
 } from "nuqs/server";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 
-export const INVESTOR_SECTIONS = ["pipeline", "profile", "import"] as const;
+export const INVESTOR_SECTIONS = [
+	"pipeline",
+	"outreach",
+	"profile",
+	"import",
+] as const;
 
 export type InvestorSection = (typeof INVESTOR_SECTIONS)[number];
 

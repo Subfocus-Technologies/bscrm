@@ -11,10 +11,13 @@ import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
+import { InvestorOutreachService } from "./investor-outreach.service";
 import {
 	fundraiseGetOutput,
 	fundraiseOutput,
 	fundraiseSaveInput,
+	investorAddressInput,
+	investorEmailIdInput,
 	investorIdsInput,
 	investorImportInput,
 	investorImportOutput,
@@ -23,6 +26,10 @@ import {
 	investorQueuedOutput,
 	investorStageInput,
 	investorStageOutput,
+	outreachOutput,
+	outreachQueuedOutput,
+	sendInvestorEmailInput,
+	sendInvestorEmailOutput,
 } from "./investors.contracts";
 import { InvestorsService } from "./investors.service";
 
@@ -31,6 +38,8 @@ import { InvestorsService } from "./investors.service";
 export class InvestorsRouter {
 	constructor(
 		@Inject(InvestorsService) private readonly investors: InvestorsService,
+		@Inject(InvestorOutreachService)
+		private readonly outreach: InvestorOutreachService,
 	) {}
 
 	@Query({
@@ -101,5 +110,55 @@ export class InvestorsRouter {
 	})
 	async findMore(@Ctx() ctx: AuthedTrpcContext) {
 		return this.investors.findMore(ctx.user.id);
+	}
+
+	@Query({
+		output: outreachOutput,
+		meta: restMeta("GET", "/investors/outreach", ["Investors"]),
+	})
+	async outreachQueue(@Ctx() ctx: AuthedTrpcContext) {
+		return this.outreach.overview(ctx.user.id);
+	}
+
+	@Mutation({
+		input: sendInvestorEmailInput,
+		output: sendInvestorEmailOutput,
+		meta: restMeta("POST", "/investors/outreach/{id}/send", ["Investors"]),
+	})
+	async sendEmail(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof sendInvestorEmailInput>,
+	) {
+		return this.outreach.send(input, ctx.user.id);
+	}
+
+	@Mutation({
+		input: investorEmailIdInput,
+		output: investorEmailIdInput,
+		meta: restMeta("POST", "/investors/outreach/{id}/skip", ["Investors"]),
+	})
+	async skipEmail(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.outreach.skip(id, ctx.user.id);
+	}
+
+	@Mutation({
+		input: investorEmailIdInput,
+		output: outreachQueuedOutput,
+		meta: restMeta("POST", "/investors/outreach/{id}/redraft", ["Investors"]),
+	})
+	async redraftEmail(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.outreach.redraft(id, ctx.user.id);
+	}
+
+	@Mutation({
+		input: investorAddressInput,
+		output: outreachQueuedOutput,
+		meta: restMeta("POST", "/investors/{investorId}/email", ["Investors"]),
+	})
+	async setAddress(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof investorAddressInput>,
+	) {
+		return this.outreach.setAddress(input, ctx.user.id);
 	}
 }

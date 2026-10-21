@@ -26,12 +26,36 @@ export class MailboxApiClient {
 			if (value !== undefined) target.searchParams.set(key, String(value));
 		}
 
+		return this.send<T>(target, {
+			headers: { authorization: `Bearer ${accessToken}` },
+		});
+	}
+
+	async post<T>(
+		url: string,
+		accessToken: string,
+		body: Record<string, string>,
+	): Promise<MailboxResult<T>> {
+		return this.send<T>(new URL(url), {
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${accessToken}`,
+				"content-type": "application/json",
+			},
+			body: JSON.stringify(body),
+		});
+	}
+
+	private async send<T>(
+		target: URL,
+		init: RequestInit,
+	): Promise<MailboxResult<T>> {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
 		try {
 			const response = await fetch(target, {
-				headers: { authorization: `Bearer ${accessToken}` },
+				...init,
 				signal: controller.signal,
 			});
 

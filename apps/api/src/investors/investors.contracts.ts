@@ -194,3 +194,60 @@ export const investorImportOutput = z.object({
 });
 
 export const investorQueuedOutput = z.object({ queued: z.number() });
+
+const outreachEmailOutput = z.object({
+	id: z.string(),
+	investorId: z.string(),
+	investorName: z.string(),
+	firm: z.string().nullable(),
+	toEmail: z.string().nullable(),
+	step: z.number(),
+	subject: z.string(),
+	body: z.string(),
+	status: z.enum(["DRAFT", "SENT", "SKIPPED", "CANCELLED"]),
+	sentAt: z.string().nullable(),
+	repliedAt: z.string().nullable(),
+	senderName: z.string().nullable(),
+});
+
+export type OutreachEmail = z.infer<typeof outreachEmailOutput>;
+
+export const outreachOutput = z.object({
+	canSend: z.boolean(),
+	sentToday: z.number(),
+	dailyLimit: z.number(),
+	drafts: z.array(outreachEmailOutput),
+	sent: z.array(outreachEmailOutput),
+});
+
+export type Outreach = z.infer<typeof outreachOutput>;
+
+export const sendInvestorEmailInput = z.object({
+	id: z.string(),
+	subject: z
+		.string()
+		.trim()
+		.min(1, "Give the email a subject.")
+		.max(INVESTORS.outreach.subjectMaxLength),
+	body: z
+		.string()
+		.trim()
+		.min(1, "Write the email first.")
+		.max(INVESTORS.outreach.bodyMaxLength),
+});
+
+export type SendInvestorEmailInput = z.infer<typeof sendInvestorEmailInput>;
+
+export const investorEmailIdInput = z.object({ id: z.string() });
+
+export const sendInvestorEmailOutput = z.object({
+	id: z.string(),
+	sentAt: z.string(),
+});
+
+export const investorAddressInput = z.object({
+	investorId: z.string(),
+	email: z.string().trim().toLowerCase().email("That is not an email address."),
+});
+
+export const outreachQueuedOutput = z.object({ queued: z.number() });

@@ -288,8 +288,15 @@ the tools `add_investors` and `score_investor` are thin.
   LinkedIn path, then email, then the website domain (not for angels), then name
   and firm. Two lists that name the same investor differently can still both
   land.
-- **Nothing is sent.** Stage 1 finds, scores and tracks. People move investors
-  through the stages by hand.
+- **`investor-outreach` drafts, people send.** Approving an investor with an
+  email address (or adding an address to an approved one) queues it;
+  `queueDueFollowUps` on the dispatch schedule queues a follow-up after
+  `INVESTORS.outreach.followUpDays` with no reply, once per sent email.
+  `preflightOutreach` ends the task without a session when the investor has
+  moved on, has no address or already has a draft waiting. The tool
+  `draft_investor_email` saves a `DRAFT` `InvestorEmail` for the task's own
+  investor, refuses more than `maxWords` words, keeps the first subject on
+  follow-ups and replaces a waiting draft. The agent never sends.
 
 ## Evidence, not confidence
 

@@ -5,7 +5,7 @@ import {
 	addInvestors,
 	investorResearchRunsToday,
 	type NewInvestor,
-	queueInvestorResearchTasks,
+	queueInvestorTasks,
 } from "@crm/db/investors";
 import {
 	type FitReason,
@@ -17,6 +17,7 @@ import {
 	type ProfileCriterion,
 	parseInvestorProfile,
 } from "@crm/validation/investors";
+import { outreachPreamble } from "./investor-outreach";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -114,6 +115,8 @@ export async function investorPreamble(
 		].join("\n\n");
 	}
 
+	if (kind === "investor-outreach") return outreachPreamble(investorId);
+
 	const investor = investorId
 		? await db.investor.findFirst({
 				where: { id: investorId, fundraiseId: fundraise.id },
@@ -160,7 +163,8 @@ export async function addDiscoveredInvestors(
 		createdById: null,
 	});
 
-	await queueInvestorResearchTasks(db, {
+	await queueInvestorTasks(db, {
+		kind: "investor-research",
 		fundraiseId,
 		investorIds: result.created.map((investor) => investor.id),
 		reason: "Score an investor the agent found",

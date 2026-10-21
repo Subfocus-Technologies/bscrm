@@ -5,6 +5,7 @@ import { useQueryStates } from "nuqs";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { FundraiseProfile } from "./fundraise-profile";
 import { InvestorImport } from "./investor-import";
+import { InvestorOutreach } from "./investor-outreach";
 import { InvestorPipeline } from "./investor-pipeline";
 import {
 	INVESTOR_SECTIONS,
@@ -14,6 +15,7 @@ import {
 
 const SECTION_LABEL = {
 	pipeline: "Pipeline",
+	outreach: "Outreach",
 	profile: "Fundraise profile",
 	import: "Upload a spreadsheet",
 } satisfies Record<InvestorSection, string>;
@@ -46,6 +48,7 @@ export function InvestorsView() {
 			</Tabs>
 
 			{section === "pipeline" ? <InvestorPipeline onNavigate={go} /> : null}
+			{section === "outreach" ? <InvestorOutreach /> : null}
 			{section === "profile" ? <FundraiseProfile /> : null}
 			{section === "import" ? <InvestorImport onNavigate={go} /> : null}
 		</div>

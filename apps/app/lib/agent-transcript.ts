@@ -66,6 +66,7 @@ const VERBS: ToolVerbs = {
 	propose_follow_ups: "Suggested to-dos and next steps from the notes",
 	add_investors: "Added investors to the fundraise pipeline",
 	score_investor: "Scored how well an investor fits the raise",
+	draft_investor_email: "Drafted an email to an investor",
 	resolve_linkedin_profile: "Searched for their LinkedIn profile",
 	get_linkedin_profile: "Read a LinkedIn profile",
 	get_contact_work_history: "Read their work history",

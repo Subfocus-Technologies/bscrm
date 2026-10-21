@@ -9,6 +9,7 @@ import { queueEventAgentRuns } from "./custom-agent-dispatch";
 import { settledWithin } from "./deadline";
 import { DISPATCH } from "./dispatch-config";
 import { markRunning, settle } from "./enrichment";
+import { preflightOutreach } from "./investor-outreach";
 import { investorPayload, preflightInvestorResearch } from "./investors";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
@@ -184,6 +185,16 @@ async function beginResearch(
 		}
 	}
 
+	if (task.kind === "investor-outreach") {
+		const preflight = await preflightOutreach(
+			investorPayload(task.payload)?.investorId ?? null,
+		);
+		if (preflight.kind === "done") {
+			await completeTask(task.id, preflight.outcome);
+			return;
+		}
+	}
+
 	if (task.kind === "business-filing") {
 		const preflight = await preflightFiling(task);
 		if (preflight.kind === "done") {
@@ -285,7 +296,11 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 		if (parsed.success) records.activityId = parsed.data.activityId;
 	}
 
-	if (task.kind === "investor-discovery" || task.kind === "investor-research") {
+	if (
+		task.kind === "investor-discovery" ||
+		task.kind === "investor-research" ||
+		task.kind === "investor-outreach"
+	) {
 		const parsed = investorPayload(task.payload);
 		if (parsed) records.fundraiseId = parsed.fundraiseId;
 		if (parsed?.investorId) records.investorId = parsed.investorId;
@@ -462,6 +477,8 @@ function work(
 			return "Find new UK investors for our raise who fit the profile in your instructions, then call add_investors once with the best of them, each with the URL that shows they fit.";
 		case "investor-research":
 			return "Research the investor in your instructions, then call score_investor once with a verdict and a source for every criterion in the profile.";
+		case "investor-outreach":
+			return "Write the email to the investor in your instructions and save it with draft_investor_email. A person approves it before anything is sent.";
 		case "business-filing":
 			return "Decide which of our businesses this record belongs to. Read its history first, then call file_into_business once per business it belongs to, citing the emails or meetings that show it. If nothing points anywhere, file nothing and say so.";
 		case "field-backfill": {

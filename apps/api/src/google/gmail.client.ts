@@ -77,6 +77,19 @@ export class GmailClient {
 		});
 	}
 
+	async sendMessage(
+		accessToken: string,
+		input: { raw: string; threadId: string | null },
+	): Promise<MailboxResult<{ id?: string; threadId?: string }>> {
+		return this.api.post(
+			`${BASE}/messages/send`,
+			accessToken,
+			input.threadId
+				? { raw: input.raw, threadId: input.threadId }
+				: { raw: input.raw },
+		);
+	}
+
 	async listHistory(
 		accessToken: string,
 		options: { startHistoryId: string; pageToken?: string },

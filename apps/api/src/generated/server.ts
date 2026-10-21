@@ -27,7 +27,7 @@ import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
 import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput, fieldEntityInput, fieldFiltersOutput, fieldIdInput, fieldCoverageOutput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput, fieldReorderOutput, fieldDeleteOutput, fieldBackfillOutput } from "../fields/fields.contracts";
 import { googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
 import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
-import { fundraiseGetOutput, fundraiseSaveInput, fundraiseOutput, investorListInput, investorListOutput, investorStageInput, investorStageOutput, investorImportInput, investorImportOutput, investorIdsInput, investorQueuedOutput } from "../investors/investors.contracts";
+import { fundraiseGetOutput, fundraiseSaveInput, fundraiseOutput, investorListInput, investorListOutput, investorStageInput, investorStageOutput, investorImportInput, investorImportOutput, investorIdsInput, investorQueuedOutput, outreachOutput, sendInvestorEmailInput, sendInvestorEmailOutput, investorEmailIdInput, outreachQueuedOutput, investorAddressInput } from "../investors/investors.contracts";
 import { meetingNotesImportInput, meetingNotesImportOutput, followUpsInput, followUpsOutput, followUpDecideInput, followUpDecideOutput, rereadOutput, incomingNotesInput, incomingNotesOutput, incomingNoteFileInput, incomingNoteFileOutput, incomingNoteIdInput, incomingNoteStatusOutput } from "../meeting-notes/meeting-notes.contracts";
 import { nextMeetingsOutput, upcomingMeetingsInput, upcomingMeetingsOutput, prepareMeetingInput, prepareMeetingOutput } from "../meetings/meetings.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
@@ -660,6 +660,25 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     findMore: publicProcedure
       .output(investorQueuedOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    outreachQueue: publicProcedure
+      .output(outreachOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    sendEmail: publicProcedure
+      .input(sendInvestorEmailInput)
+      .output(sendInvestorEmailOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    skipEmail: publicProcedure
+      .input(investorEmailIdInput)
+      .output(investorEmailIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    redraftEmail: publicProcedure
+      .input(investorEmailIdInput)
+      .output(outreachQueuedOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setAddress: publicProcedure
+      .input(investorAddressInput)
+      .output(outreachQueuedOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   meetingNotes: t.router({

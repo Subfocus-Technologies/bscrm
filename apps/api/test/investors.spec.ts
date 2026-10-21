@@ -1,9 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
 import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
+import { noticeInvestorReply } from "@crm/db/investors";
 import type { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import type { GmailClient } from "../src/google/gmail.client";
+import { InvestorOutreachService } from "../src/investors/investor-outreach.service";
 import type { InvestorImportRow } from "../src/investors/investors.contracts";
 import { InvestorsService } from "../src/investors/investors.service";
+import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 
 const suffix = process.env.TEST_RUN_ID ?? "investors-spec";
 const userId = `investors-user-${suffix}`;
@@ -19,9 +23,44 @@ const agent = {
 		discovery.push(fundraiseId);
 		return true;
 	},
+	investorOutreachRequested: async (_fundraiseId: string, ids: string[]) => {
+		drafting.push(ids);
+		return ids.length;
+	},
 } as unknown as AgentTriggerService;
 
-const investors = new InvestorsService(db, agent);
+const drafting: string[][] = [];
+const sentRaw: { raw: string; threadId: string | null }[] = [];
+let canSend = true;
+const gmail = {
+	sendMessage: async (
+		_token: string,
+		input: { raw: string; threadId: string | null },
+	) => {
+		sentRaw.push(input);
+		return {
+			outcome: "ok" as const,
+			data: { id: `gmail-${sentRaw.length}`, threadId: "thread-1" },
+		};
+	},
+	getMessage: async (_token: string, id: string) => ({
+		outcome: "ok" as const,
+		data: {
+			id,
+			payload: { headers: [{ name: "Message-ID", value: `<${id}@mail>` }] },
+		},
+	}),
+} as unknown as GmailClient;
+const tokens = {
+	canSendGmail: async () => canSend,
+	gmailSendToken: async () =>
+		canSend
+			? { outcome: "ok" as const, accessToken: "token" }
+			: { outcome: "not-connected" as const, reason: "no" },
+} as unknown as MailboxTokenService;
+
+const outreach = new InvestorOutreachService(db, agent, gmail, tokens);
+const investors = new InvestorsService(db, agent, outreach);
 
 const PROFILE = {
 	criteria: [
@@ -97,6 +136,9 @@ beforeEach(async () => {
 	await clean();
 	research.length = 0;
 	discovery.length = 0;
+	drafting.length = 0;
+	sentRaw.length = 0;
+	canSend = true;
 	await db.user.create({
 		data: { id: userId, name: "Sayu", email: `${userId}@example.test` },
 	});
@@ -267,5 +309,150 @@ describe("the investor pipeline", () => {
 		await db.agentTask.deleteMany({
 			where: { kind: "investor-discovery", subject: fundraise.id },
 		});
+	});
+});
+
+async function approvedInvestor(name: string, email: string | null) {
+	await saveProfile();
+	await investors.importRows(
+		{ label: "Outreach", rows: [row(name, { email })] },
+		userId,
+	);
+	const investor = await db.investor.findFirstOrThrow({
+		where: { name },
+		select: { id: true },
+	});
+	await investors.setStage({ ids: [investor.id], stage: "APPROVED" }, userId);
+	return investor.id;
+}
+
+async function draft(investorId: string, step = 0) {
+	return db.investorEmail.create({
+		data: {
+			investorId,
+			step,
+			subject: "Bricksmart.ai pre-seed",
+			body: "Hello, would you take a 20 minute call?",
+		},
+		select: { id: true },
+	});
+}
+
+describe("investor outreach", () => {
+	it("asks the agent for a first email once an investor with an address is approved", async () => {
+		const withAddress = await approvedInvestor(
+			"Has Email VC",
+			"deals@vc.example",
+		);
+		const without = await approvedInvestor("No Email VC", null);
+
+		expect(drafting.flat()).toEqual([withAddress]);
+
+		await outreach.setAddress(
+			{ investorId: without, email: "hi@noemail.example" },
+			userId,
+		);
+		expect(drafting.flat()).toEqual([withAddress, without]);
+	});
+
+	it("sends a draft from the person's Gmail, signed, and marks them contacted", async () => {
+		const investorId = await approvedInvestor("Send VC", "deals@send.example");
+		const first = await draft(investorId);
+
+		await outreach.send(
+			{ id: first.id, subject: "Bricksmart.ai pre-seed", body: "Hello there." },
+			userId,
+		);
+
+		const raw = Buffer.from(sentRaw[0]?.raw ?? "", "base64url").toString(
+			"utf8",
+		);
+		expect(raw).toContain("To: deals@send.example");
+		expect(raw).toContain("Subject: Bricksmart.ai pre-seed");
+		expect(
+			Buffer.from(raw.split("\r\n\r\n")[1] ?? "", "base64").toString("utf8"),
+		).toBe("Hello there.\n\nSayu");
+		expect(sentRaw[0]?.threadId).toBeNull();
+		const after = await db.investor.findUniqueOrThrow({
+			where: { id: investorId },
+			select: { stage: true, contactedAt: true },
+		});
+		expect(after.stage).toBe("CONTACTED");
+		expect(after.contactedAt).not.toBeNull();
+
+		const followUp = await draft(investorId, 1);
+		await outreach.send(
+			{
+				id: followUp.id,
+				subject: "Re: Bricksmart.ai pre-seed",
+				body: "Following up.",
+			},
+			userId,
+		);
+		const second = Buffer.from(sentRaw[1]?.raw ?? "", "base64url").toString(
+			"utf8",
+		);
+		expect(sentRaw[1]?.threadId).toBe("thread-1");
+		expect(second).toContain("In-Reply-To: <gmail-1@mail>");
+	});
+
+	it("refuses without Gmail sending allowed, and past the daily limit", async () => {
+		const investorId = await approvedInvestor(
+			"Limit VC",
+			"deals@limit.example",
+		);
+		const first = await draft(investorId);
+
+		canSend = false;
+		await expect(
+			outreach.send({ id: first.id, subject: "Hi", body: "Hi" }, userId),
+		).rejects.toThrow("Allow sending from Gmail");
+
+		canSend = true;
+		await db.fundraise.updateMany({ data: { dailySendLimit: 0 } });
+		await expect(
+			outreach.send({ id: first.id, subject: "Hi", body: "Hi" }, userId),
+		).rejects.toThrow("Today's limit of 0 investor emails is reached.");
+	});
+
+	it("moves an investor to replied and cancels their drafts when they answer", async () => {
+		const investorId = await approvedInvestor(
+			"Reply VC",
+			"deals@reply.example",
+		);
+		const first = await draft(investorId);
+		await outreach.send({ id: first.id, subject: "Hi", body: "Hi" }, userId);
+		const followUp = await draft(investorId, 1);
+
+		expect(
+			await noticeInvestorReply(db, {
+				userId,
+				mailbox: `${userId}@example.test`,
+				threadId: "thread-1",
+				fromEmail: `${userId}@example.test`,
+				at: new Date(Date.now() + 60_000),
+			}),
+		).toBeNull();
+		expect(
+			await noticeInvestorReply(db, {
+				userId,
+				mailbox: `${userId}@example.test`,
+				threadId: "thread-1",
+				fromEmail: "deals@reply.example",
+				at: new Date(Date.now() + 60_000),
+			}),
+		).toBe(investorId);
+
+		const investor = await db.investor.findUniqueOrThrow({
+			where: { id: investorId },
+			select: { stage: true, repliedAt: true },
+		});
+		expect(investor.stage).toBe("REPLIED");
+		expect(investor.repliedAt).not.toBeNull();
+		const cancelled = await db.investorEmail.findUniqueOrThrow({
+			where: { id: followUp.id },
+			select: { status: true },
+		});
+		expect(cancelled.status).toBe("CANCELLED");
 	});
 });

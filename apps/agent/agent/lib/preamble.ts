@@ -43,7 +43,8 @@ export async function sessionPreamble(
 	if (opened.kind === "workspace-profile") return workspacePreamble();
 	if (
 		opened.kind === "investor-discovery" ||
-		opened.kind === "investor-research"
+		opened.kind === "investor-research" ||
+		opened.kind === "investor-outreach"
 	) {
 		return investorSessionPreamble(opened);
 	}

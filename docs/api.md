@@ -216,6 +216,16 @@ Two rules follow for the serverless build:
   enrichment never see them. Imports arrive as parsed rows from the browser
   (`apps/app/lib/investor-import.ts` reads .xlsx and .csv) and go through
   `addInvestors` in `@crm/db/investors`, the same path the agent uses.
+- **Investor emails go out from the approver's own Gmail.** Sending needs the
+  extra `gmail.send` scope (`SEND_SCOPES`), which a person grants from the
+  Investors → Outreach tab with `linkSocial`. It is not in `SYNC_SCOPES`, so
+  nobody is walled out for lacking it. `InvestorOutreachService.send` sends
+  only a `DRAFT` a person submits, appends the sender's name, threads
+  follow-ups with `threadId`, `In-Reply-To` and `References`, and stops at
+  `Fundraise.dailySendLimit` a UK day. Each Gmail sync passes every new message
+  to `noticeInvestorReply` (`@crm/db/investors`): a message from someone else
+  in a sent investor thread moves the investor to `REPLIED` and cancels their
+  drafts.
 - **The header's next-meeting window reads Google Calendar live.** `meetings.mine`
   (`NextMeetingsService`) lists the signed-in person's own next timed meetings
   that they have not declined, internal ones included, because the sync stores

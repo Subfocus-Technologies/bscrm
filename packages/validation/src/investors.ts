@@ -10,6 +10,17 @@ export const INVESTORS = {
 	pageSize: 50,
 	meetingTarget: { default: 5, max: 50 },
 	scoring: { mustMissCap: 40 },
+	outreach: {
+		followUpDays: [4, 10],
+		maxWords: 180,
+		draftBudget: 3,
+		listSize: 50,
+		dailySendDefault: 20,
+		dailySendMax: 200,
+		followUpsPerTick: 20,
+		subjectMaxLength: 200,
+		bodyMaxLength: 5000,
+	},
 } as const;
 
 export const INVESTOR_KINDS = [

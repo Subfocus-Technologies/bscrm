@@ -7,6 +7,7 @@ import {
 	queueDueAgentRuns,
 } from "../lib/custom-agent-dispatch";
 import { brief, drainAll, taskAuth } from "../lib/dispatch";
+import { queueDueFollowUps } from "../lib/investor-outreach";
 import { queueScheduledDiscovery } from "../lib/investors";
 import { reconcileStaleTasks } from "../lib/stale-tasks";
 
@@ -17,6 +18,7 @@ export default defineSchedule({
 			Promise.all([
 				sweepBlankFacts(),
 				queueScheduledDiscovery(),
+				queueDueFollowUps(),
 
 				(async () => {
 					await reconcileStaleTasks();

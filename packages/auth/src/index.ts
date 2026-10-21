@@ -37,6 +37,7 @@ export {
 export {
 	CALENDAR_SCOPE,
 	GMAIL_SCOPE,
+	GMAIL_SEND_SCOPE,
 	GOOGLE_PROVIDER_ID,
 	hasSyncScopes,
 	IDENTITY_SCOPES,
@@ -50,6 +51,7 @@ export {
 	OUTLOOK_MAIL_SCOPE,
 	parseScopes,
 	REQUIRED_SCOPES,
+	SEND_SCOPES,
 	type SignInAccount,
 	SYNC_SCOPES,
 	SYNC_SCOPES_FOR,

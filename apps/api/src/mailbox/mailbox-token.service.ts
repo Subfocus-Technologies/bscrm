@@ -1,5 +1,6 @@
 import {
 	auth,
+	GMAIL_SEND_SCOPE,
 	type MailboxProviderId,
 	parseScopes,
 	type SignInAccount,
@@ -46,6 +47,42 @@ export class MailboxTokenService {
 			PROVIDER_FOR_SOURCE[source],
 		);
 		return scopes.has(SCOPE_FOR_SOURCE[source]);
+	}
+
+	async canSendGmail(userId: string): Promise<boolean> {
+		const scopes = await this.grantedScopes(userId, GOOGLE_PROVIDER_ID);
+		return scopes.has(GMAIL_SEND_SCOPE);
+	}
+
+	async gmailSendToken(userId: string): Promise<TokenResult> {
+		if (!(await this.canSendGmail(userId))) {
+			return {
+				outcome: "not-connected",
+				reason: "Gmail sending has not been allowed.",
+			};
+		}
+
+		try {
+			const { accessToken } = await auth.api.getAccessToken({
+				body: { providerId: GOOGLE_PROVIDER_ID, userId },
+			});
+			return accessToken
+				? { outcome: "ok", accessToken }
+				: {
+						outcome: "needs-reconnect",
+						reason: "Google returned no access token.",
+					};
+		} catch (error) {
+			this.logger.warn({
+				message: "Gmail send token refresh failed",
+				userId,
+				reason: error instanceof Error ? error.message : String(error),
+			});
+			return {
+				outcome: "needs-reconnect",
+				reason: "Google would not refresh the access token.",
+			};
+		}
 	}
 
 	async signInAccounts(userId: string): Promise<SignInAccount[]> {

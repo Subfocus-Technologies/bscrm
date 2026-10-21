@@ -50,6 +50,7 @@ model User {
   updatedFundraises           Fundraise[]           @relation("FundraiseUpdater")
   createdInvestors            Investor[]            @relation("InvestorCreator")
   movedInvestors              Investor[]            @relation("InvestorStageMover")
+  sentInvestorEmails          InvestorEmail[]       @relation("InvestorEmailSender")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -1390,6 +1391,7 @@ model Fundraise {
   researchDailyLimit  Int      @default(40)
   autoDiscover        Boolean  @default(true)
   weeklyMeetingTarget Int      @default(5)
+  dailySendLimit      Int      @default(20)
 
   createdById String?
   createdBy   User?   @relation("FundraiseCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1436,6 +1438,10 @@ model Investor {
   fitScore     Int?
   fit          Json?
   researchedAt DateTime?
+  contactedAt  DateTime?
+  repliedAt    DateTime?
+
+  emails InvestorEmail[]
 
   createdById String?
   createdBy   User?   @relation("InvestorCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1446,6 +1452,40 @@ model Investor {
   @@unique([fundraiseId, dedupeKey])
   @@index([fundraiseId, stage, fitScore])
   @@map("investor")
+}
+
+enum InvestorEmailStatus {
+  DRAFT
+  SENT
+  SKIPPED
+  CANCELLED
+}
+
+model InvestorEmail {
+  id         String              @id @default(cuid())
+  investorId String
+  investor   Investor            @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  step       Int
+  subject    String
+  body       String
+  status     InvestorEmailStatus @default(DRAFT)
+
+  toEmail        String?
+  senderUserId   String?
+  sender         User?     @relation("InvestorEmailSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  gmailMessageId String?
+  gmailThreadId  String?
+  rfcMessageId   String?
+  sentAt         DateTime?
+  repliedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([investorId, step])
+  @@index([gmailThreadId])
+  @@index([status, sentAt])
+  @@map("investorEmail")
 }
 
 enum IncomingMeetingNoteStatus {

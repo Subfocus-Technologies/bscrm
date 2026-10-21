@@ -132,9 +132,17 @@ export async function investorResearchRunsToday(
 	});
 }
 
-export async function queueInvestorResearchTasks(
+export type InvestorTaskKind = "investor-research" | "investor-outreach";
+
+const INVESTOR_TASK_PRIORITY = {
+	"investor-research": PRIORITY.investorResearch,
+	"investor-outreach": PRIORITY.investorOutreach,
+} satisfies Record<InvestorTaskKind, number>;
+
+export async function queueInvestorTasks(
 	client: Client,
 	input: {
+		kind: InvestorTaskKind;
 		fundraiseId: string;
 		investorIds: readonly string[];
 		reason: string;
@@ -145,7 +153,7 @@ export async function queueInvestorResearchTasks(
 
 	const pending = await client.agentTask.findMany({
 		where: {
-			kind: "investor-research",
+			kind: input.kind,
 			finishedAt: null,
 			subject: { in: [...input.investorIds] },
 		},
@@ -158,9 +166,9 @@ export async function queueInvestorResearchTasks(
 		data: input.investorIds
 			.filter((id) => !waiting.has(id))
 			.map((investorId) => ({
-				kind: "investor-research",
+				kind: input.kind,
 				reason: input.reason,
-				priority: PRIORITY.investorResearch,
+				priority: INVESTOR_TASK_PRIORITY[input.kind],
 				budget: input.budget,
 				dueAt: now,
 				subject: investorId,
@@ -169,4 +177,57 @@ export async function queueInvestorResearchTasks(
 	});
 
 	return count;
+}
+
+export async function noticeInvestorReply(
+	client: Db,
+	message: {
+		userId: string;
+		mailbox: string;
+		threadId: string | null;
+		fromEmail: string | null;
+		at: Date;
+	},
+): Promise<string | null> {
+	if (!message.threadId || !message.fromEmail) return null;
+	if (message.fromEmail.toLowerCase() === message.mailbox.toLowerCase()) {
+		return null;
+	}
+
+	const sent = await client.investorEmail.findFirst({
+		where: {
+			gmailThreadId: message.threadId,
+			senderUserId: message.userId,
+			status: "SENT",
+			sentAt: { lt: message.at },
+		},
+		select: { investorId: true, investor: { select: { stage: true } } },
+	});
+	if (!sent) return null;
+
+	const stillOpen = ["APPROVED", "CONTACTED"].includes(sent.investor.stage);
+
+	await client.$transaction([
+		client.investorEmail.updateMany({
+			where: { gmailThreadId: message.threadId, repliedAt: null },
+			data: { repliedAt: message.at },
+		}),
+		client.investorEmail.updateMany({
+			where: { investorId: sent.investorId, status: "DRAFT" },
+			data: { status: "CANCELLED" },
+		}),
+		client.investor.update({
+			where: { id: sent.investorId },
+			data: stillOpen
+				? {
+						repliedAt: message.at,
+						stage: "REPLIED",
+						stageChangedAt: message.at,
+						stageChangedById: null,
+					}
+				: { repliedAt: message.at },
+		}),
+	]);
+
+	return sent.investorId;
 }
