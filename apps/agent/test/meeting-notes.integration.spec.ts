@@ -9,7 +9,7 @@ const userId = `notes-agent-${suffix}`;
 let activityId: string;
 
 const NOTES =
-	"Action items:\n- Mira will send the rent roll by Friday.\n- We agreed to book a site visit next month.";
+	"Action items:\n- Mira will send the rent roll by Friday.\n- We agreed to book a site visit next month.\n- Share Mira’s background with the team — before the call.";
 
 beforeEach(async () => {
 	await db.contact.deleteMany({ where: { email } });
@@ -64,6 +64,19 @@ describe("proposeFollowUps", () => {
 			dueAt: new Date("2026-10-23T09:00:00Z"),
 			owner: "Mira",
 		});
+	});
+
+	it("matches a quote typed with straight quotes against curly ones in the notes", async () => {
+		const outcome = await proposeFollowUps(activityId, [
+			{
+				...rentRoll,
+				title: "Share Mira's background",
+				dueDate: null,
+				quote: "Share Mira's background with the team - before the call",
+			},
+		]);
+
+		expect(outcome).toEqual({ saved: 1, dropped: [] });
 	});
 
 	it("drops an item the notes do not say", async () => {

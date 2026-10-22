@@ -15,7 +15,14 @@ export type ProposeOutcome = {
 };
 
 function squash(text: string): string {
-	return text.toLowerCase().replace(/\s+/g, " ").trim();
+	return text
+		.normalize("NFKC")
+		.replace(/[‘’‚‛′]/g, "'")
+		.replace(/[“”„‟″]/g, '"')
+		.replace(/[‐-―−]/g, "-")
+		.toLowerCase()
+		.replace(/\s+/g, " ")
+		.trim();
 }
 
 export async function readMeetingNotes(activityId: string) {
