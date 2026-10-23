@@ -1,5 +1,5 @@
 FROM node:24-slim
-COPY --from=oven/bun:1.3.12-slim /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1.4.4-slim /usr/local/bin/bun /usr/local/bin/bun
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . .
