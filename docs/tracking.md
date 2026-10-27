@@ -216,6 +216,12 @@ everybody: a member's render would fire a request that can only be refused.
 - **`MAX_VERIFY_BYTES` is measured against real marketing pages.** The old
   512 KB cut was smaller than one homepage this repo's own company ships, and a
   tag past the cut reads exactly like a tag that is not there.
+- **Each allowed domain belongs to at most one business** (`trackedDomain.businessId`,
+  `tracking.setDomainBusiness`, manager-only like the rest of the page). It is
+  reporting only: it is not in the compiled config, so changing it never
+  invalidates the cache. The dashboard's traffic section credits a host to the
+  business of the domain that covers it, an exact host first and then the longest
+  covering domain, the same reading as `matchedHost`.
 - **Rotating the site id is the kill switch for a stolen snippet.** The old id stops
   resolving at `forSite` within the cache TTL.
 - **The compiled config is cached for five minutes and invalidated on every write.**

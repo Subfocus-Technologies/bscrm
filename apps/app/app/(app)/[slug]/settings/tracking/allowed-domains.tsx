@@ -35,6 +35,10 @@ import { TableCell } from "@crm/ui/components/table";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
+import {
+	type Business,
+	useBusinesses,
+} from "@/components/businesses/use-businesses";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -44,6 +48,7 @@ const CELL = "px-3 py-2.5 align-middle";
 const COLUMNS: SimpleTableColumn[] = [
 	{ id: "domain", header: "Domain" },
 	{ id: "scope", header: "Scope", width: "w-40" },
+	{ id: "business", header: "Business", width: "w-44" },
 	{ id: "pageViews", header: "Page views", width: "w-28", align: "right" },
 	{ id: "lastSeen", header: "Last seen", width: "w-28", align: "right" },
 	{ id: "actions", srLabel: "Actions", width: "w-24" },
@@ -54,11 +59,14 @@ const SCOPES = {
 	EXACT_HOST: "Exact host",
 } as const;
 
+const NO_BUSINESS = "__none__";
+
 export function AllowedDomains() {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 
 	const tracking = useQuery(trpc.tracking.settings.queryOptions());
+	const businesses = useBusinesses();
 
 	const remove = useMutation(
 		trpc.tracking.removeDomain.mutationOptions({
@@ -101,6 +109,14 @@ export function AllowedDomains() {
 							<TableCell className={`${CELL} text-muted-foreground`}>
 								{SCOPES[domain.scope]}
 							</TableCell>
+							<TableCell className={CELL}>
+								<DomainBusiness
+									domainId={domain.id}
+									businessId={domain.businessId}
+									businesses={businesses.data ?? []}
+									disabled={!canManage}
+								/>
+							</TableCell>
 							<TableCell className={`${CELL} text-right tabular-nums`}>
 								{domain.pageViews.toLocaleString()}
 							</TableCell>
@@ -131,18 +147,92 @@ export function AllowedDomains() {
 	);
 }
 
-function AddDomain({ disabled }: { disabled: boolean }) {
+function DomainBusiness({
+	domainId,
+	businessId,
+	businesses,
+	disabled,
+}: {
+	domainId: string;
+	businessId: string | null;
+	businesses: Business[];
+	disabled: boolean;
+}) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 
+	const assign = useMutation(
+		trpc.tracking.setDomainBusiness.mutationOptions({
+			onSuccess: async () => {
+				await cache.tracking();
+				toast.success("Business updated.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	return (
+		<BusinessSelect
+			value={businessId}
+			businesses={businesses}
+			disabled={disabled || assign.isPending}
+			label="Business for this domain"
+			onChange={(next) => assign.mutate({ id: domainId, businessId: next })}
+		/>
+	);
+}
+
+function BusinessSelect({
+	id,
+	value,
+	businesses,
+	disabled,
+	label,
+	onChange,
+}: {
+	id?: string;
+	value: string | null;
+	businesses: Business[];
+	disabled: boolean;
+	label?: string;
+	onChange: (businessId: string | null) => void;
+}) {
+	return (
+		<Select
+			value={value ?? NO_BUSINESS}
+			disabled={disabled}
+			onValueChange={(next) => onChange(next === NO_BUSINESS ? null : next)}
+		>
+			<SelectTrigger id={id} size="sm" className="w-full" aria-label={label}>
+				<SelectValue />
+			</SelectTrigger>
+			<SelectContent>
+				<SelectItem value={NO_BUSINESS}>No business</SelectItem>
+				{businesses.map((business) => (
+					<SelectItem key={business.id} value={business.id}>
+						{business.name}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+	);
+}
+
+function AddDomain({ disabled }: { disabled: boolean }) {
+	const trpc = useTRPC();
+	const cache = useCrmCache();
+	const businesses = useBusinesses();
+
 	const hostId = useId();
 	const scopeId = useId();
+	const businessId = useId();
 
 	const [open, setOpen] = useState(false);
 	const [host, setHost] = useState("");
 	const [scope, setScope] = useState<keyof typeof SCOPES>(
 		"SITE_AND_SUBDOMAINS",
 	);
+	const [business, setBusiness] = useState<string | null>(null);
 
 	const add = useMutation(
 		trpc.tracking.addDomain.mutationOptions({
@@ -150,6 +240,7 @@ function AddDomain({ disabled }: { disabled: boolean }) {
 				await cache.tracking();
 				setOpen(false);
 				setHost("");
+				setBusiness(null);
 				toast.success("Domain added.");
 			},
 			onError: (error) => toast.error(error.message),
@@ -170,7 +261,7 @@ function AddDomain({ disabled }: { disabled: boolean }) {
 					className="flex flex-col gap-4"
 					onSubmit={(event) => {
 						event.preventDefault();
-						add.mutate({ host: host.trim(), scope });
+						add.mutate({ host: host.trim(), scope, businessId: business });
 					}}
 				>
 					<Field>
@@ -204,6 +295,17 @@ function AddDomain({ disabled }: { disabled: boolean }) {
 								))}
 							</SelectContent>
 						</Select>
+					</Field>
+
+					<Field>
+						<FieldLabel htmlFor={businessId}>Business</FieldLabel>
+						<BusinessSelect
+							id={businessId}
+							value={business}
+							businesses={businesses.data ?? []}
+							disabled={false}
+							onChange={setBusiness}
+						/>
 					</Field>
 
 					<Button type="submit" disabled={add.isPending || host.trim() === ""}>

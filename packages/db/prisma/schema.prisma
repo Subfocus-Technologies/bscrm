@@ -1003,6 +1003,7 @@ model Business {
   deals       Deal[]
   suggestions BusinessSuggestion[]
   rules       BusinessRule[]
+  domains     TrackedDomain[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1720,11 +1721,15 @@ model TrackedDomain {
   host  String      @unique
   scope DomainScope @default(EXACT_HOST)
 
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+
   pageViews  Int       @default(0)
   lastSeenAt DateTime?
 
   createdAt DateTime @default(now())
 
+  @@index([businessId])
   @@map("trackedDomain")
 }
 

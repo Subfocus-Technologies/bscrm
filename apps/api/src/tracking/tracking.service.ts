@@ -100,6 +100,7 @@ export class TrackingService {
 				id: domain.id,
 				host: domain.host,
 				scope: domain.scope,
+				businessId: domain.businessId,
 				pageViews: domain.pageViews,
 				lastSeenAt: domain.lastSeenAt?.toISOString() ?? null,
 			})),
@@ -159,7 +160,7 @@ export class TrackingService {
 
 	async addDomain(
 		userId: string,
-		input: { host: string; scope: DomainScope },
+		input: { host: string; scope: DomainScope; businessId: string | null },
 	): Promise<TrackedDomainRow> {
 		await this.assertCanManage(userId);
 
@@ -172,7 +173,7 @@ export class TrackingService {
 
 		try {
 			const domain = await this.db.trackedDomain.create({
-				data: { host, scope: input.scope },
+				data: { host, scope: input.scope, businessId: input.businessId },
 			});
 
 			await this.config.invalidate();
@@ -181,6 +182,7 @@ export class TrackingService {
 				id: domain.id,
 				host: domain.host,
 				scope: domain.scope,
+				businessId: domain.businessId,
 				pageViews: domain.pageViews,
 				lastSeenAt: null,
 			};
@@ -190,6 +192,37 @@ export class TrackingService {
 				error.code === "P2002"
 			) {
 				throw new BadRequestException(`${host} is already on the list.`);
+			}
+			if (
+				error instanceof Prisma.PrismaClientKnownRequestError &&
+				error.code === "P2003"
+			) {
+				throw new NotFoundException("That business no longer exists.");
+			}
+
+			throw error;
+		}
+	}
+
+	async setDomainBusiness(
+		userId: string,
+		input: { id: string; businessId: string | null },
+	): Promise<void> {
+		await this.assertCanManage(userId);
+
+		try {
+			await this.db.trackedDomain.update({
+				where: { id: input.id },
+				data: { businessId: input.businessId },
+			});
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError) {
+				if (error.code === "P2025") {
+					throw new NotFoundException("That domain is already gone.");
+				}
+				if (error.code === "P2003") {
+					throw new NotFoundException("That business no longer exists.");
+				}
 			}
 
 			throw error;

@@ -19,6 +19,12 @@ export const cookieLifetimeInput = z.object({
 export const addDomainInput = z.object({
 	host: z.string().min(1).max(253),
 	scope: z.enum(["SITE_AND_SUBDOMAINS", "EXACT_HOST"]).default("EXACT_HOST"),
+	businessId: z.string().min(1).nullable().default(null),
+});
+
+export const domainBusinessInput = z.object({
+	id: z.string().min(1),
+	businessId: z.string().min(1).nullable(),
 });
 
 export const removeDomainInput = z.object({
@@ -43,6 +49,7 @@ export const trackedDomainOutput = z.object({
 	id: z.string(),
 	host: z.string(),
 	scope: domainScopeOutput,
+	businessId: z.string().nullable(),
 	pageViews: z.number(),
 	lastSeenAt: z.string().nullable(),
 });

@@ -16,6 +16,7 @@ import {
 	companyActivityInput,
 	contactActivityInput,
 	cookieLifetimeInput,
+	domainBusinessInput,
 	removeDomainInput,
 	rotateSiteIdOutput,
 	sourcesOutput,
@@ -89,6 +90,18 @@ export class TrackingRouter {
 		@Input() input: z.infer<typeof removeDomainInput>,
 	) {
 		return this.tracking.removeDomain(ctx.user.id, input.id);
+	}
+
+	@Mutation({
+		input: domainBusinessInput,
+		output: z.void(),
+		meta: restMeta("PATCH", "/tracking/domains/{id}/business", ["Tracking"]),
+	})
+	async setDomainBusiness(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof domainBusinessInput>,
+	) {
+		return this.tracking.setDomainBusiness(ctx.user.id, input);
 	}
 
 	@Mutation({
