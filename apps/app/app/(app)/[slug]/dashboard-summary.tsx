@@ -42,6 +42,7 @@ import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+import { BusinessPerformance } from "./business-performance";
 import { overviewParsers } from "./overview-search-params";
 import { SalesDashboard } from "./sales-dashboard";
 import { UpcomingMeetings } from "./upcoming-meetings";
@@ -133,6 +134,8 @@ export function DashboardSummary() {
 	return (
 		<div className="flex flex-col gap-6">
 			<SalesDashboard summary={summary} />
+
+			<BusinessPerformance />
 
 			<UpcomingMeetings />
 

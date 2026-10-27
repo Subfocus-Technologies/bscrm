@@ -1,5 +1,9 @@
 import { ActivityType, DealStage } from "@crm/db";
 import { activityMeta } from "@crm/validation/activity-meta";
+import {
+	DEFAULT_REPORT_PERIOD,
+	REPORT_PERIODS,
+} from "@crm/validation/dashboard";
 import { z } from "zod";
 import { businessScopeInput } from "../trpc/list-input";
 
@@ -128,4 +132,37 @@ export const dashboardSummaryOutput = z.object({
 	biggestOpen: z.array(biggestOpenDealOutput),
 	overdueTasks: z.array(overdueTaskOutput),
 	recentActivity: z.array(recentActivityOutput),
+});
+
+export const businessPerformanceInput = z.object({
+	period: z.enum(REPORT_PERIODS).default(DEFAULT_REPORT_PERIOD),
+	business: businessScopeInput,
+});
+
+export type BusinessPerformanceInput = z.infer<typeof businessPerformanceInput>;
+
+const performanceFigures = z.object({
+	visitors: z.number(),
+	views: z.number(),
+	sold: z.number(),
+	valueCents: z.number(),
+});
+
+export const businessPerformanceOutput = z.object({
+	period: z.enum(REPORT_PERIODS),
+	from: z.string(),
+	to: z.string(),
+	reportingCurrency: z.string(),
+	websites: z.object({
+		total: z.number(),
+		unlinked: z.number(),
+	}),
+	rows: z.array(
+		performanceFigures.extend({
+			businessId: z.string().nullable(),
+			name: z.string().nullable(),
+			tone: z.number().nullable(),
+		}),
+	),
+	total: performanceFigures.nullable(),
 });

@@ -19,7 +19,7 @@ export function BusinessAvatar({
 	business,
 	selected = false,
 }: {
-	business: Business;
+	business: Pick<Business, "name" | "tone">;
 	selected?: boolean;
 }) {
 	return (

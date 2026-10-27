@@ -50,7 +50,7 @@ export default function OverviewPage({ searchParams }: PageProps<"/[slug]">) {
 async function Summary({
 	searchParams,
 }: Pick<PageProps<"/[slug]">, "searchParams">) {
-	const [, { scope }, business] = await Promise.all([
+	const [, { scope, period }, business] = await Promise.all([
 		requireSession(),
 		loadOverviewSearchParams(searchParams),
 		loadBusinessFocus(),
@@ -64,6 +64,9 @@ async function Summary({
 		),
 		queryClient.prefetchQuery(
 			trpc.meetings.upcoming.queryOptions({ business }),
+		),
+		queryClient.prefetchQuery(
+			trpc.dashboard.businessPerformance.queryOptions({ period, business }),
 		),
 	]);
 

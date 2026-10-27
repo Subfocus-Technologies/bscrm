@@ -26,6 +26,7 @@ export const SEARCH_PARAM = {
 	},
 	overview: {
 		scope: "scope",
+		period: "period",
 	},
 	meetingNotes: {
 		view: "view",

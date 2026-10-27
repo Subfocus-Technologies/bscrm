@@ -1,6 +1,7 @@
 import { ActivityType, type Db, DealStage, type Prisma } from "@crm/db";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
 import { activityMeta } from "@crm/validation/activity-meta";
+import { REPORT_PERIOD_DAYS } from "@crm/validation/dashboard";
 import { Injectable } from "@nestjs/common";
 import {
 	activityBusinessScope,
@@ -9,8 +10,12 @@ import {
 import { toCents } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
+import { salesByBusiness, trafficByBusiness } from "./business-performance";
 import { type BusinessTargets, businessTargets } from "./business-targets";
-import type { DashboardSummaryInput } from "./dashboard.contracts";
+import type {
+	BusinessPerformanceInput,
+	DashboardSummaryInput,
+} from "./dashboard.contracts";
 
 const OWNER_SELECT = {
 	id: true,
@@ -310,6 +315,61 @@ export class DashboardService {
 				createdAt: createdAt.toISOString(),
 				meta: activityMeta.parse(meta),
 			})),
+		};
+	}
+
+	async businessPerformance(input: BusinessPerformanceInput) {
+		const end = new Date();
+		const window = {
+			start: new Date(
+				end.getTime() - REPORT_PERIOD_DAYS[input.period] * DAY_MS,
+			),
+			end,
+		};
+
+		const base = await this.conversion.reportingCurrency();
+		const [traffic, sales, businesses, websites, unlinked] = await Promise.all([
+			trafficByBusiness(this.db, { window, business: input.business }),
+			salesByBusiness(this.db, {
+				window,
+				business: input.business,
+				counted: this.conversion.countedWhere(base),
+			}),
+			this.db.business.findMany({
+				where: input.business ? { id: input.business } : {},
+				select: { id: true, name: true, tone: true },
+				orderBy: { name: "asc" },
+			}),
+			this.db.trackedDomain.count(),
+			this.db.trackedDomain.count({ where: { businessId: null } }),
+		]);
+
+		const figuresOf = (businessId: string | null) => ({
+			visitors: traffic.byBusiness.get(businessId)?.visitors ?? 0,
+			views: traffic.byBusiness.get(businessId)?.views ?? 0,
+			sold: sales.byBusiness.get(businessId)?.sold ?? 0,
+			valueCents: sales.byBusiness.get(businessId)?.valueCents ?? 0,
+		});
+
+		const unassigned = { businessId: null, name: null, tone: null };
+		const rows = [
+			...businesses.map((business) => ({
+				businessId: business.id,
+				name: business.name,
+				tone: business.tone,
+				...figuresOf(business.id),
+			})),
+			...(input.business ? [] : [{ ...unassigned, ...figuresOf(null) }]),
+		].filter((row) => row.businessId !== null || row.views > 0 || row.sold > 0);
+
+		return {
+			period: input.period,
+			from: window.start.toISOString(),
+			to: window.end.toISOString(),
+			reportingCurrency: base,
+			websites: { total: websites, unlinked },
+			rows,
+			total: input.business ? null : { ...traffic.total, ...sales.total },
 		};
 	}
 

@@ -979,6 +979,7 @@ model Deal {
   @@index([currency])
   @@index([archivedAt])
   @@index([businessId])
+  @@index([stage, closedAt])
   @@map("deal")
 }
 
@@ -1785,6 +1786,7 @@ model TrackedEvent {
   @@index([occurredAt])
   @@index([host, occurredAt])
   @@index([source, occurredAt])
+  @@index([type, occurredAt, host, visitorId])
   @@map("trackedEvent")
 }
 
