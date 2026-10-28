@@ -338,6 +338,14 @@ every rule; the tool `propose_todos` is thin.
   record, created by that person. *Ignore* keeps the row, so the agent never
   suggests it again. `todos.add` writes a task a person types themselves, with
   or without a record.
+- **Done and Add to calendar are decisions too.** *Done* writes the task
+  already finished, so it shows in the Done tab and on the record. *Add to
+  calendar* (`todos.schedule`, in the API) asks Google for the person's busy
+  times, takes the first free `TODOS.calendar.slotMs` on a weekday between
+  `dayStartHour` and `dayEndHour` UK time, before the end of the due day when
+  there is one, and adds an event with no guests to their own calendar. The
+  task is due at that time. It needs the `calendar.events` grant, which comes
+  with Gmail sending in one `ACTION_SCOPES` request.
 - **The agent never sends.** A person sends a reply from the review panel with
   `todos.sendReply`, from their own Gmail, in the same conversation. *Draft a
   reply* (`todos.requestReply`) queues `email-actions` at once with

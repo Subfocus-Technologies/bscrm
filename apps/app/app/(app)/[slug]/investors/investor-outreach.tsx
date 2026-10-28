@@ -25,7 +25,7 @@ import { Textarea } from "@crm/ui/components/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
-import { AllowGmailSending } from "@/components/allow-gmail-sending";
+import { AllowGoogleAccess } from "@/components/allow-google-access";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -257,7 +257,10 @@ export function InvestorOutreach() {
 	return (
 		<div className="flex flex-col gap-4 pb-8">
 			{data.canSend ? null : (
-				<AllowGmailSending description="Approved emails go from your own Gmail, so replies land in your inbox and the CRM sees them. Google asks you once to allow sending. The CRM only sends an email when you press Send." />
+				<AllowGoogleAccess
+					title="Allow sending from your Gmail"
+					description="Approved emails go from your own Gmail, so replies land in your inbox and the CRM sees them. Google asks you once to allow sending email and adding events to your calendar. The CRM only sends an email when you press Send."
+				/>
 			)}
 
 			<Card>

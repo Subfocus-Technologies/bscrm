@@ -34,7 +34,7 @@ import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedVie
 import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
-import { suggestionsInput, suggestionsOutput, addTodoInput, addTodoOutput, suggestionIdInput, suggestionDecisionOutput, threadReplyInput, threadReplyOutput, requestReplyInput, requestReplyOutput, sendReplyInput, sendReplyOutput, discardReplyOutput } from "../todos/todos.contracts";
+import { suggestionsInput, suggestionsOutput, addTodoInput, addTodoOutput, suggestionIdInput, suggestionDecisionOutput, scheduleOutput, threadReplyInput, threadReplyOutput, requestReplyInput, requestReplyOutput, sendReplyInput, sendReplyOutput, discardReplyOutput } from "../todos/todos.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, domainBusinessInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput, inviteListOutput, addMemberInput, inviteOutput, cancelInviteInput, cancelInviteOutput, removeMemberInput, removeMemberOutput } from "../workspace/workspace.contracts";
 import type { UsersRouter } from "../users/users.router";
@@ -872,6 +872,14 @@ const appRouter = t.router({
     accept: publicProcedure
       .input(suggestionIdInput)
       .output(suggestionDecisionOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    done: publicProcedure
+      .input(suggestionIdInput)
+      .output(suggestionDecisionOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    schedule: publicProcedure
+      .input(suggestionIdInput)
+      .output(scheduleOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     ignore: publicProcedure
       .input(suggestionIdInput)

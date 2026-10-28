@@ -44,6 +44,13 @@ export const TODOS = {
 		instructionsMaxLength: 500,
 	},
 	tasks: { pageSize: 25 },
+	calendar: {
+		slotMs: 30 * MINUTE_MS,
+		stepMs: 15 * MINUTE_MS,
+		searchMs: 14 * DAY_MS,
+		dayStartHour: 9,
+		dayEndHour: 18,
+	},
 } as const;
 
 export const TODO_SUGGESTION_VIEWS = ["PROPOSED", "IGNORED"] as const;

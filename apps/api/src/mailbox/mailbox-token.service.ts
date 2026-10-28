@@ -1,5 +1,6 @@
 import {
 	auth,
+	CALENDAR_EVENTS_SCOPE,
 	GMAIL_SEND_SCOPE,
 	type MailboxProviderId,
 	parseScopes,
@@ -50,16 +51,44 @@ export class MailboxTokenService {
 	}
 
 	async canSendGmail(userId: string): Promise<boolean> {
-		const scopes = await this.grantedScopes(userId, GOOGLE_PROVIDER_ID);
-		return scopes.has(GMAIL_SEND_SCOPE);
+		return this.hasGoogleScope(userId, GMAIL_SEND_SCOPE);
 	}
 
 	async gmailSendToken(userId: string): Promise<TokenResult> {
-		if (!(await this.canSendGmail(userId))) {
-			return {
-				outcome: "not-connected",
-				reason: "Gmail sending has not been allowed.",
-			};
+		return this.googleTokenWith(
+			userId,
+			GMAIL_SEND_SCOPE,
+			"Gmail sending has not been allowed.",
+		);
+	}
+
+	async canWriteCalendar(userId: string): Promise<boolean> {
+		return this.hasGoogleScope(userId, CALENDAR_EVENTS_SCOPE);
+	}
+
+	async calendarWriteToken(userId: string): Promise<TokenResult> {
+		return this.googleTokenWith(
+			userId,
+			CALENDAR_EVENTS_SCOPE,
+			"Adding calendar events has not been allowed.",
+		);
+	}
+
+	private async hasGoogleScope(
+		userId: string,
+		scope: string,
+	): Promise<boolean> {
+		const scopes = await this.grantedScopes(userId, GOOGLE_PROVIDER_ID);
+		return scopes.has(scope);
+	}
+
+	private async googleTokenWith(
+		userId: string,
+		scope: string,
+		missing: string,
+	): Promise<TokenResult> {
+		if (!(await this.hasGoogleScope(userId, scope))) {
+			return { outcome: "not-connected", reason: missing };
 		}
 
 		try {
@@ -74,7 +103,7 @@ export class MailboxTokenService {
 					};
 		} catch (error) {
 			this.logger.warn({
-				message: "Gmail send token refresh failed",
+				message: "Google token refresh failed",
 				userId,
 				reason: error instanceof Error ? error.message : String(error),
 			});

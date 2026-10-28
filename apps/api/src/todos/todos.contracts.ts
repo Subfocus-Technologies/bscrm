@@ -60,6 +60,7 @@ export const suggestionsOutput = z.object({
 	items: z.array(suggestionOutput),
 	total: z.number(),
 	pageSize: z.number(),
+	canAddToCalendar: z.boolean(),
 	counts: z.object({
 		PROPOSED: z.number(),
 		IGNORED: z.number(),
@@ -150,3 +151,12 @@ export const addTodoInput = z.object({
 export type AddTodoInput = z.infer<typeof addTodoInput>;
 
 export const addTodoOutput = z.object({ id: z.string() });
+
+export const scheduleOutput = z.object({
+	id: z.string(),
+	status: z.enum(["PROPOSED", "ACCEPTED", "DONE", "IGNORED"]),
+	taskId: z.string().nullable(),
+	startsAt: z.string(),
+	endsAt: z.string(),
+	eventUrl: z.string().nullable(),
+});

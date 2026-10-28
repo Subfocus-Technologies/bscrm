@@ -8,7 +8,7 @@ import { Textarea } from "@crm/ui/components/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
-import { AllowGmailSending } from "@/components/allow-gmail-sending";
+import { AllowGoogleAccess } from "@/components/allow-google-access";
 import { EmailThreadMessages } from "@/components/crm/email-thread-messages";
 import {
 	DetailSheet,
@@ -226,7 +226,10 @@ function ReplyPanel({
 	return (
 		<div className="flex flex-col gap-4">
 			{data.canSend ? null : (
-				<AllowGmailSending description="Replies go from your own Gmail, in the same conversation, so the client sees them as normal email. Google asks you once to allow sending. The CRM only sends when you press Send." />
+				<AllowGoogleAccess
+					title="Allow sending from your Gmail"
+					description="Replies go from your own Gmail, in the same conversation, so the client sees them as normal email. Google asks you once to allow sending email and adding events to your calendar. The CRM only sends when you press Send."
+				/>
 			)}
 			<ReplyEditor
 				key={data.draft?.updatedAt ?? "no-draft"}

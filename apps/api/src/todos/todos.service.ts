@@ -4,19 +4,27 @@ import {
 	type Prisma,
 	TodoSuggestionStatus,
 } from "@crm/db";
+import { workspaceDayStart } from "@crm/db/day";
+import { WORKSPACE_TIME_ZONE } from "@crm/db/settings";
 import { TODOS, type TodoSuggestionView } from "@crm/validation/todos";
 import {
+	BadRequestException,
 	ConflictException,
 	Injectable,
 	Logger,
 	NotFoundException,
 } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
+import { CalendarClient } from "../google/calendar.client";
+import { MailboxTokenService } from "../mailbox/mailbox-token.service";
+import { firstFreeSlot, type Interval } from "./free-slot";
 import type {
 	AddTodoInput,
 	SuggestionOutput,
 	SuggestionsInput,
 } from "./todos.contracts";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const VIEW_STATUSES = {
 	PROPOSED: [TodoSuggestionStatus.PROPOSED],
@@ -128,6 +136,20 @@ function toSuggestion(row: SuggestionRow): SuggestionOutput {
 	};
 }
 
+type ClaimedSuggestion = {
+	id: string;
+	title: string;
+	detail: string | null;
+	quote: string;
+	dueAt: Date | null;
+	contactId: string | null;
+	companyId: string | null;
+};
+
+function endOfDay(at: Date): Date {
+	return new Date(workspaceDayStart(at).getTime() + DAY_MS);
+}
+
 function taskBody(item: { detail: string | null; quote: string }): string {
 	return [item.detail, `"${item.quote}"`].filter(Boolean).join("\n\n");
 }
@@ -136,7 +158,11 @@ function taskBody(item: { detail: string | null; quote: string }): string {
 export class TodosService {
 	private readonly logger = new Logger(TodosService.name);
 
-	constructor(@InjectDatabase() private readonly db: Db) {}
+	constructor(
+		@InjectDatabase() private readonly db: Db,
+		private readonly tokens: MailboxTokenService,
+		private readonly calendar: CalendarClient,
+	) {}
 
 	async suggestions(input: SuggestionsInput, actingUserId: string) {
 		const pageSize = TODOS.suggestions.pageSize;
@@ -150,7 +176,7 @@ export class TodosService {
 				? [{ createdAt: "desc" }, { position: "asc" }]
 				: [{ decidedAt: { sort: "desc", nulls: "last" } }];
 
-		const [rows, total, grouped] = await Promise.all([
+		const [rows, total, grouped, canAddToCalendar] = await Promise.all([
 			this.db.todoSuggestion.findMany({
 				where,
 				orderBy,
@@ -164,6 +190,7 @@ export class TodosService {
 				where: mine,
 				_count: { _all: true },
 			}),
+			this.tokens.canWriteCalendar(actingUserId),
 		]);
 
 		const countOf = (statuses: TodoSuggestionStatus[]) =>
@@ -175,6 +202,7 @@ export class TodosService {
 			items: rows.map(toSuggestion),
 			total,
 			pageSize,
+			canAddToCalendar,
 			counts: {
 				PROPOSED: countOf(VIEW_STATUSES.PROPOSED),
 				IGNORED: countOf(VIEW_STATUSES.IGNORED),
@@ -216,40 +244,12 @@ export class TodosService {
 	}
 
 	async accept(id: string, actingUserId: string) {
-		const result = await this.db.$transaction(async (tx) => {
-			const item = await this.claim(
-				tx,
-				id,
-				actingUserId,
-				TodoSuggestionStatus.ACCEPTED,
-			);
-
-			const task = await tx.activity.create({
-				data: {
-					type: ActivityType.TASK,
-					subject: item.title,
-					body: taskBody(item),
-					occurredAt: new Date(),
-					dueAt: item.dueAt,
-					companyId: item.companyId,
-					contactId: item.contactId,
-					createdById: actingUserId,
-					meta: { fromTodoSuggestion: item.id },
-				},
-				select: { id: true },
-			});
-
-			await tx.todoSuggestion.update({
-				where: { id: item.id },
-				data: { taskId: task.id },
-			});
-
-			return {
-				id: item.id,
-				status: TodoSuggestionStatus.ACCEPTED,
-				taskId: task.id,
-			};
-		});
+		const result = await this.decide(
+			id,
+			actingUserId,
+			TodoSuggestionStatus.ACCEPTED,
+			(item) => ({ dueAt: item.dueAt }),
+		);
 
 		this.logger.log({
 			message: "To-do suggestion added as a task",
@@ -258,6 +258,162 @@ export class TodosService {
 			userId: actingUserId,
 		});
 		return result;
+	}
+
+	async done(id: string, actingUserId: string) {
+		const result = await this.decide(
+			id,
+			actingUserId,
+			TodoSuggestionStatus.DONE,
+			(item) => ({ dueAt: item.dueAt, completedAt: new Date() }),
+		);
+
+		this.logger.log({
+			message: "To-do suggestion marked done",
+			suggestionId: id,
+			taskId: result.taskId,
+			userId: actingUserId,
+		});
+		return result;
+	}
+
+	async schedule(id: string, actingUserId: string) {
+		const item = await this.db.todoSuggestion.findFirst({
+			where: { id, userId: actingUserId },
+			select: {
+				status: true,
+				title: true,
+				detail: true,
+				quote: true,
+				dueAt: true,
+			},
+		});
+		if (!item) throw new NotFoundException(`No suggestion with id ${id}.`);
+		if (item.status !== TodoSuggestionStatus.PROPOSED) {
+			throw new ConflictException("This suggestion is already decided.");
+		}
+
+		const token = await this.tokens.calendarWriteToken(actingUserId);
+		if (token.outcome !== "ok") {
+			throw new BadRequestException(
+				"Allow the CRM to add events to your Google Calendar first.",
+			);
+		}
+
+		const slot = await this.freeSlot(token.accessToken, item.dueAt);
+		const event = await this.calendar.insertEvent(token.accessToken, {
+			summary: item.title,
+			description: taskBody(item),
+			start: slot.start,
+			end: slot.end,
+			timeZone: WORKSPACE_TIME_ZONE,
+		});
+		if (event.outcome !== "ok") {
+			this.logger.warn({
+				message: "Calendar event was not created",
+				suggestionId: id,
+				outcome: event.outcome,
+				userId: actingUserId,
+			});
+			throw new BadRequestException(
+				`Google Calendar did not add it: ${event.reason}.`,
+			);
+		}
+
+		const result = await this.decide(
+			id,
+			actingUserId,
+			TodoSuggestionStatus.ACCEPTED,
+			() => ({
+				dueAt: slot.start,
+				meta: { calendarEventUrl: event.data.htmlLink ?? null },
+			}),
+		);
+
+		this.logger.log({
+			message: "To-do suggestion added to the calendar",
+			suggestionId: id,
+			taskId: result.taskId,
+			userId: actingUserId,
+		});
+		return {
+			...result,
+			startsAt: slot.start.toISOString(),
+			endsAt: slot.end.toISOString(),
+			eventUrl: event.data.htmlLink ?? null,
+		};
+	}
+
+	private async freeSlot(
+		accessToken: string,
+		dueAt: Date | null,
+	): Promise<Interval> {
+		const from = new Date();
+		const until = new Date(from.getTime() + TODOS.calendar.searchMs);
+		const busy = await this.calendar.busyTimes(accessToken, {
+			timeMin: from,
+			timeMax: until,
+			timeZone: WORKSPACE_TIME_ZONE,
+		});
+		if (busy.outcome !== "ok") {
+			throw new BadRequestException(
+				`Google Calendar did not say when you are free: ${busy.reason}.`,
+			);
+		}
+
+		const taken = busy.data.map((time) => ({
+			start: new Date(time.start),
+			end: new Date(time.end),
+		}));
+		const deadline = dueAt && dueAt > from ? endOfDay(dueAt) : until;
+		const slot =
+			firstFreeSlot({ busy: taken, from, until: deadline }) ??
+			firstFreeSlot({ busy: taken, from, until });
+		if (!slot) {
+			throw new BadRequestException(
+				"Your calendar has no free half hour in working hours for the next two weeks.",
+			);
+		}
+		return slot;
+	}
+
+	private async decide(
+		id: string,
+		actingUserId: string,
+		status: TodoSuggestionStatus,
+		task: (item: ClaimedSuggestion) => {
+			dueAt: Date | null;
+			completedAt?: Date;
+			meta?: Record<string, string | null>;
+		},
+	) {
+		return this.db.$transaction(async (tx) => {
+			const item = await this.claim(tx, id, actingUserId, status);
+			const shape = task(item);
+
+			const created = await tx.activity.create({
+				data: {
+					type: ActivityType.TASK,
+					subject: item.title,
+					body: taskBody(item),
+					occurredAt: new Date(),
+					dueAt: shape.dueAt,
+					completedAt: shape.completedAt ?? null,
+					companyId: item.companyId,
+					contactId: item.contactId,
+					createdById: actingUserId,
+					meta: { fromTodoSuggestion: item.id, ...shape.meta },
+				},
+				select: { id: true },
+			});
+
+			await tx.todoSuggestion.update({
+				where: { id: item.id },
+				data: { taskId: created.id },
+			});
+
+			return { id: item.id, status, taskId: created.id };
+		});
 	}
 
 	async ignore(id: string, actingUserId: string) {

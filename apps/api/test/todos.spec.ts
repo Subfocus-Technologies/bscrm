@@ -3,6 +3,7 @@ import { db } from "@crm/db";
 import { ActivitiesService } from "../src/activities/activities.service";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
 import { ActivityStampService } from "../src/crm/activity-stamp.service";
+import type { CalendarClient } from "../src/google/calendar.client";
 import type { GmailClient } from "../src/google/gmail.client";
 import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import { EmailReplyService } from "../src/todos/email-reply.service";
@@ -36,7 +37,31 @@ const gmail = {
 		},
 	}),
 } as unknown as GmailClient;
+let canSchedule = true;
+const busy: { start: string; end: string }[] = [];
+const events: { summary: string; start: Date }[] = [];
+const calendar = {
+	busyTimes: async () => ({ outcome: "ok" as const, data: busy }),
+	insertEvent: async (
+		_token: string,
+		event: { summary: string; start: Date },
+	) => {
+		events.push(event);
+		return {
+			outcome: "ok" as const,
+			data: {
+				id: "event-1",
+				htmlLink: "https://calendar.google.com/event?eid=1",
+			},
+		};
+	},
+} as unknown as CalendarClient;
 const tokens = {
+	canWriteCalendar: async () => canSchedule,
+	calendarWriteToken: async () =>
+		canSchedule
+			? { outcome: "ok" as const, accessToken: "token" }
+			: { outcome: "not-connected" as const, reason: "no" },
 	canSendGmail: async () => canSend,
 	gmailSendToken: async () =>
 		canSend
@@ -46,7 +71,7 @@ const tokens = {
 
 const agent = new AgentTriggerService(db);
 const stamp = new ActivityStampService(db);
-const todos = new TodosService(db);
+const todos = new TodosService(db, tokens, calendar);
 const replies = new EmailReplyService(db, agent, gmail, tokens);
 
 let contactId = "";
@@ -82,7 +107,10 @@ async function suggest(kind: "REPLY" | "TODO", title: string, owner = userId) {
 beforeEach(async () => {
 	await clean();
 	sentRaw.length = 0;
+	events.length = 0;
+	busy.length = 0;
 	canSend = true;
+	canSchedule = true;
 	for (const id of [userId, otherId]) {
 		await db.user.upsert({
 			where: { id },
@@ -181,6 +209,48 @@ describe("to-do suggestions", () => {
 
 		expect(ignored.total).toBe(1);
 		expect(back.total).toBe(1);
+	});
+});
+
+describe("finishing or scheduling a suggestion", () => {
+	it("records a suggestion that is already done as a finished task", async () => {
+		const id = await suggest("TODO", "Send Priya the pricing");
+
+		const done = await todos.done(id, userId);
+		const task = await db.activity.findUniqueOrThrow({
+			where: { id: done.taskId },
+			select: { completedAt: true, contactId: true },
+		});
+
+		expect(done.status).toBe("DONE");
+		expect(task.completedAt).not.toBeNull();
+		expect(task.contactId).toBe(contactId);
+	});
+
+	it("puts a suggestion in the first free slot of the diary and on the to-do list", async () => {
+		const id = await suggest("TODO", "Send Priya the pricing");
+
+		const scheduled = await todos.schedule(id, userId);
+		const task = await db.activity.findUniqueOrThrow({
+			where: { id: scheduled.taskId },
+			select: { dueAt: true, meta: true },
+		});
+
+		expect(events).toHaveLength(1);
+		expect(events[0]?.summary).toBe("Send Priya the pricing");
+		expect(task.dueAt?.toISOString()).toBe(scheduled.startsAt);
+		expect(task.meta).toMatchObject({
+			calendarEventUrl: "https://calendar.google.com/event?eid=1",
+		});
+		expect(todos.schedule(id, userId)).rejects.toThrow("already decided");
+	});
+
+	it("asks for calendar access before adding anything", async () => {
+		canSchedule = false;
+		const id = await suggest("TODO", "Send Priya the pricing");
+
+		expect(todos.schedule(id, userId)).rejects.toThrow("Allow the CRM");
+		expect(events).toHaveLength(0);
 	});
 });
 

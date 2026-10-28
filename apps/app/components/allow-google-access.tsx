@@ -1,7 +1,7 @@
 "use client";
 
 import { authClient } from "@crm/auth/client";
-import { SEND_SCOPES } from "@crm/auth/scopes";
+import { ACTION_SCOPES } from "@crm/auth/scopes";
 import { Button } from "@crm/ui/components/button";
 import {
 	Card,
@@ -14,7 +14,13 @@ import { Spinner } from "@crm/ui/components/spinner";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function AllowGmailSending({ description }: { description: string }) {
+export function AllowGoogleAccess({
+	title,
+	description,
+}: {
+	title: string;
+	description: string;
+}) {
 	const [pending, setPending] = useState(false);
 
 	const allow = async () => {
@@ -22,7 +28,7 @@ export function AllowGmailSending({ description }: { description: string }) {
 		const back = window.location.href;
 		const { error } = await authClient.linkSocial({
 			provider: "google",
-			scopes: [...SEND_SCOPES],
+			scopes: [...ACTION_SCOPES],
 			callbackURL: back,
 			errorCallbackURL: back,
 		});
@@ -35,12 +41,12 @@ export function AllowGmailSending({ description }: { description: string }) {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Allow sending from your Gmail</CardTitle>
+				<CardTitle>{title}</CardTitle>
 				<CardDescription>{description}</CardDescription>
 				<CardAction>
 					<Button size="sm" disabled={pending} onClick={() => void allow()}>
 						{pending ? <Spinner /> : null}
-						Allow sending
+						Allow
 					</Button>
 				</CardAction>
 			</CardHeader>

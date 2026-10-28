@@ -1,3 +1,4 @@
+import type { JsonObject } from "@crm/db/json";
 import { Injectable, Logger } from "@nestjs/common";
 
 export type MailboxResult<T> =
@@ -34,7 +35,7 @@ export class MailboxApiClient {
 	async post<T>(
 		url: string,
 		accessToken: string,
-		body: Record<string, string>,
+		body: JsonObject,
 	): Promise<MailboxResult<T>> {
 		return this.send<T>(new URL(url), {
 			method: "POST",

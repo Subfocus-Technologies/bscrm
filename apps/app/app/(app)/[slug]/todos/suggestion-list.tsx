@@ -1,5 +1,7 @@
 "use client";
 
+import Calendar from "@carbon/icons-react/es/Calendar";
+import Checkmark from "@carbon/icons-react/es/Checkmark";
 import Email from "@carbon/icons-react/es/Email";
 import ListChecked from "@carbon/icons-react/es/ListChecked";
 import { Badge } from "@crm/ui/components/badge";
@@ -16,6 +18,7 @@ import { Spinner } from "@crm/ui/components/spinner";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AllowGoogleAccess } from "@/components/allow-google-access";
 import { EmailReplySheet } from "@/components/crm/email-reply-sheet";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { LocalDay, LocalRelativeTime } from "@/components/local-date-time";
@@ -65,12 +68,22 @@ function SourceLine({ suggestion }: { suggestion: Suggestion }) {
 	);
 }
 
+const SLOT_FORMAT: Intl.DateTimeFormatOptions = {
+	weekday: "short",
+	day: "numeric",
+	month: "short",
+	hour: "numeric",
+	minute: "2-digit",
+};
+
 function Decide({
 	suggestion,
 	onReview,
+	canAddToCalendar,
 }: {
 	suggestion: Suggestion;
 	onReview: (() => void) | null;
+	canAddToCalendar: boolean;
 }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
@@ -80,6 +93,35 @@ function Decide({
 			onSuccess: async () => {
 				await cache.todos();
 				toast.success("Added to your to-dos.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const done = useMutation(
+		trpc.todos.done.mutationOptions({
+			onSuccess: async () => {
+				await cache.todos();
+				toast.success("Marked done.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const schedule = useMutation(
+		trpc.todos.schedule.mutationOptions({
+			onSuccess: async (slot) => {
+				await cache.todos();
+				const when = new Intl.DateTimeFormat(undefined, SLOT_FORMAT).format(
+					new Date(slot.startsAt),
+				);
+				const eventUrl = slot.eventUrl;
+				toast.success(`Added to your calendar for ${when}.`, {
+					action: eventUrl
+						? {
+								label: "Open",
+								onClick: () => window.open(eventUrl, "_blank", "noreferrer"),
+							}
+						: undefined,
+				});
 			},
 			onError: (error) => toast.error(error.message),
 		}),
@@ -96,7 +138,12 @@ function Decide({
 			onError: (error) => toast.error(error.message),
 		}),
 	);
-	const busy = accept.isPending || ignore.isPending || restore.isPending;
+	const busy =
+		accept.isPending ||
+		done.isPending ||
+		schedule.isPending ||
+		ignore.isPending ||
+		restore.isPending;
 	const reply = suggestion.kind === "REPLY";
 
 	if (suggestion.status === "IGNORED") {
@@ -139,6 +186,32 @@ function Decide({
 			</Button>
 			<Button
 				size="sm"
+				variant="outline"
+				disabled={busy || !canAddToCalendar}
+				onClick={() => schedule.mutate({ id: suggestion.id })}
+			>
+				{schedule.isPending ? (
+					<Spinner />
+				) : (
+					<Icon icon={Calendar} data-icon="inline-start" />
+				)}
+				Add to calendar
+			</Button>
+			<Button
+				size="sm"
+				variant="outline"
+				disabled={busy}
+				onClick={() => done.mutate({ id: suggestion.id })}
+			>
+				{done.isPending ? (
+					<Spinner />
+				) : (
+					<Icon icon={Checkmark} data-icon="inline-start" />
+				)}
+				Done
+			</Button>
+			<Button
+				size="sm"
 				variant="ghost"
 				disabled={busy}
 				onClick={() => ignore.mutate({ id: suggestion.id })}
@@ -149,7 +222,13 @@ function Decide({
 	);
 }
 
-function SuggestionRow({ suggestion }: { suggestion: Suggestion }) {
+function SuggestionRow({
+	suggestion,
+	canAddToCalendar,
+}: {
+	suggestion: Suggestion;
+	canAddToCalendar: boolean;
+}) {
 	const [reviewing, setReviewing] = useState(false);
 	const source = suggestion.source;
 	const thread = source?.kind === "email" ? source : null;
@@ -192,6 +271,7 @@ function SuggestionRow({ suggestion }: { suggestion: Suggestion }) {
 
 			<Decide
 				suggestion={suggestion}
+				canAddToCalendar={canAddToCalendar}
 				onReview={thread ? () => setReviewing(true) : null}
 			/>
 
@@ -268,11 +348,25 @@ export function SuggestionList({
 		);
 	}
 
+	const canAddToCalendar = query.data.canAddToCalendar;
+
 	return (
-		<ul className="flex flex-col divide-y rounded-lg border">
-			{query.data.items.map((suggestion) => (
-				<SuggestionRow key={suggestion.id} suggestion={suggestion} />
-			))}
-		</ul>
+		<div className="flex flex-col gap-4">
+			{canAddToCalendar || view !== "PROPOSED" ? null : (
+				<AllowGoogleAccess
+					title="Allow adding to your calendar"
+					description="Add to calendar puts a to-do in the first free half hour of your working day, before it is due. Google asks you once to allow adding events to your calendar and sending email from your Gmail. Nothing is sent and nobody is invited."
+				/>
+			)}
+			<ul className="flex flex-col divide-y rounded-lg border">
+				{query.data.items.map((suggestion) => (
+					<SuggestionRow
+						key={suggestion.id}
+						suggestion={suggestion}
+						canAddToCalendar={canAddToCalendar}
+					/>
+				))}
+			</ul>
+		</div>
 	);
 }

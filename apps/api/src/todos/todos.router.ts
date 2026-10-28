@@ -18,6 +18,7 @@ import {
 	discardReplyOutput,
 	requestReplyInput,
 	requestReplyOutput,
+	scheduleOutput,
 	sendReplyInput,
 	sendReplyOutput,
 	suggestionDecisionOutput,
@@ -68,6 +69,24 @@ export class TodosRouter {
 	})
 	async accept(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
 		return this.todos.accept(id, ctx.user.id);
+	}
+
+	@Mutation({
+		input: suggestionIdInput,
+		output: suggestionDecisionOutput,
+		meta: restMeta("POST", "/todos/suggestions/{id}/done", ["To-dos"]),
+	})
+	async done(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.todos.done(id, ctx.user.id);
+	}
+
+	@Mutation({
+		input: suggestionIdInput,
+		output: scheduleOutput,
+		meta: restMeta("POST", "/todos/suggestions/{id}/schedule", ["To-dos"]),
+	})
+	async schedule(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.todos.schedule(id, ctx.user.id);
 	}
 
 	@Mutation({

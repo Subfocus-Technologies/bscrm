@@ -35,6 +35,8 @@ export {
 	workspaceRoleOf,
 } from "./organization";
 export {
+	ACTION_SCOPES,
+	CALENDAR_EVENTS_SCOPE,
 	CALENDAR_SCOPE,
 	GMAIL_SCOPE,
 	GMAIL_SEND_SCOPE,
@@ -51,7 +53,6 @@ export {
 	OUTLOOK_MAIL_SCOPE,
 	parseScopes,
 	REQUIRED_SCOPES,
-	SEND_SCOPES,
 	type SignInAccount,
 	SYNC_SCOPES,
 	SYNC_SCOPES_FOR,

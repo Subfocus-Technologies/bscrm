@@ -6,6 +6,21 @@ import {
 
 const EVENTS_URL =
 	"https://www.googleapis.com/calendar/v3/calendars/primary/events";
+const FREE_BUSY_URL = "https://www.googleapis.com/calendar/v3/freeBusy";
+
+export type BusyTime = { start: string; end: string };
+
+type FreeBusyResponse = {
+	calendars?: Record<string, { busy?: BusyTime[] }>;
+};
+
+export type NewEvent = {
+	summary: string;
+	description: string;
+	start: Date;
+	end: Date;
+	timeZone: string;
+};
 
 export type GoogleEvent = {
 	id?: string;
@@ -74,6 +89,36 @@ export class CalendarClient {
 			syncToken: query.syncToken,
 			pageToken: query.pageToken,
 			...window,
+		});
+	}
+
+	async busyTimes(
+		accessToken: string,
+		window: { timeMin: Date; timeMax: Date; timeZone: string },
+	): Promise<MailboxResult<BusyTime[]>> {
+		const result = await this.api.post<FreeBusyResponse>(
+			FREE_BUSY_URL,
+			accessToken,
+			{
+				timeMin: window.timeMin.toISOString(),
+				timeMax: window.timeMax.toISOString(),
+				timeZone: window.timeZone,
+				items: [{ id: "primary" }],
+			},
+		);
+		if (result.outcome !== "ok") return result;
+		return { outcome: "ok", data: result.data.calendars?.primary?.busy ?? [] };
+	}
+
+	async insertEvent(
+		accessToken: string,
+		event: NewEvent,
+	): Promise<MailboxResult<GoogleEvent>> {
+		return this.api.post<GoogleEvent>(EVENTS_URL, accessToken, {
+			summary: event.summary,
+			description: event.description,
+			start: { dateTime: event.start.toISOString(), timeZone: event.timeZone },
+			end: { dateTime: event.end.toISOString(), timeZone: event.timeZone },
 		});
 	}
 
