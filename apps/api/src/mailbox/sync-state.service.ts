@@ -161,7 +161,16 @@ export class SyncStateService {
 	): Promise<void> {
 		await this.db.mailboxSync.updateMany({
 			where: { userId, source },
-			data: { autoCreate: enabled },
+			data: enabled
+				? { autoCreate: true, caughtUpAt: null }
+				: { autoCreate: false },
+		});
+	}
+
+	async markCaughtUp(id: string): Promise<void> {
+		await this.db.mailboxSync.update({
+			where: { id },
+			data: { caughtUpAt: new Date() },
 		});
 	}
 

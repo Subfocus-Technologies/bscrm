@@ -5,7 +5,7 @@ import { todoFocus } from "../lib/focus";
 import { proposeTodos } from "../lib/todos";
 
 export default defineTool({
-	description: `Save the actions an email conversation or a finished meeting needs, for the mailbox owner to review on their To-do page. Call it once with every item; a second call replaces the suggestions still waiting. Each item quotes the exact words in the source it comes from, or it is dropped. A REPLY item needs the reply text in \`reply\`, at most ${TODOS.reply.maxWords} words, saved as a draft. Nothing is sent and nothing becomes a task until a person approves it.`,
+	description: `Save the actions an email conversation, a finished meeting or a set of meeting notes needs, for the mailbox owner to review on their To-do page. Call it once with every item; a second call replaces the suggestions still waiting. Each item quotes the exact words in the source it comes from, or it is dropped. A REPLY item needs the reply text in \`reply\`, at most ${TODOS.reply.maxWords} words, saved as a draft. Nothing is sent and nothing becomes a task until a person approves it.`,
 	inputSchema: z.object({
 		items: z
 			.array(
@@ -46,8 +46,13 @@ export default defineTool({
 			),
 	}),
 	async execute({ items, reply }) {
-		const { emailThreadId, calendarEventId, mailboxUserId, replyRequested } =
-			todoFocus();
+		const {
+			emailThreadId,
+			calendarEventId,
+			incomingMeetingNoteId,
+			mailboxUserId,
+			replyRequested,
+		} = todoFocus();
 		if (!mailboxUserId) {
 			return {
 				ok: false as const,
@@ -61,6 +66,13 @@ export default defineTool({
 				items,
 				reply,
 				replyRequested,
+			);
+		}
+		if (incomingMeetingNoteId) {
+			return proposeTodos(
+				{ kind: "note", incomingMeetingNoteId, userId: mailboxUserId },
+				items,
+				null,
 			);
 		}
 		if (calendarEventId) {

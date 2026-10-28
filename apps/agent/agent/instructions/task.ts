@@ -40,6 +40,9 @@ export default defineDynamic({
 			const investorId = attributeText.parse(attributes.investorId);
 			const emailThreadId = attributeText.parse(attributes.emailThreadId);
 			const calendarEventId = attributeText.parse(attributes.calendarEventId);
+			const incomingMeetingNoteId = attributeText.parse(
+				attributes.incomingMeetingNoteId,
+			);
 			const mailboxUserId = attributeText.parse(attributes.mailboxUserId);
 			const replyRequested =
 				attributeText.parse(attributes.replyRequested) === "true";
@@ -64,6 +67,7 @@ export default defineDynamic({
 					investorId,
 					emailThreadId,
 					calendarEventId,
+					incomingMeetingNoteId,
 					mailboxUserId,
 					replyRequested,
 					replyInstructions,
@@ -78,6 +82,7 @@ export default defineDynamic({
 				investorId,
 				emailThreadId,
 				calendarEventId,
+				incomingMeetingNoteId,
 				mailboxUserId,
 				replyRequested,
 			});

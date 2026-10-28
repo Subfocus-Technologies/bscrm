@@ -391,24 +391,20 @@ export class AgentTriggerService {
 		this.poke();
 	}
 
-	async emailNeedsActions(input: {
+	async emailReplyRequested(input: {
 		emailThreadId: string;
 		userId: string;
 		contactId: string | null;
 		companyId: string | null;
-		replyRequested?: boolean;
-		instructions?: string | null;
+		instructions: string | null;
 	}): Promise<void> {
-		const replyRequested = input.replyRequested ?? false;
 		const payload = {
 			emailThreadId: input.emailThreadId,
 			userId: input.userId,
-			replyRequested,
-			instructions: input.instructions ?? null,
+			replyRequested: true,
+			instructions: input.instructions,
 		} satisfies EmailActionsPayload;
-		const dueAt = replyRequested
-			? new Date()
-			: new Date(Date.now() + TODOS.email.settleMs);
+		const reason = "A person asked for a reply";
 
 		const waiting = await this.db.agentTask.findFirst({
 			where: {
@@ -421,12 +417,10 @@ export class AgentTriggerService {
 			select: { id: true },
 		});
 
-		if (waiting && !replyRequested) return;
-
 		if (waiting) {
 			await this.db.agentTask.update({
 				where: { id: waiting.id },
-				data: { payload, dueAt, reason: "A person asked for a reply" },
+				data: { payload, dueAt: new Date(), reason },
 			});
 		} else {
 			await this.db.agentTask.create({
@@ -434,12 +428,10 @@ export class AgentTriggerService {
 					contactId: input.contactId,
 					companyId: input.companyId,
 					kind: "email-actions",
-					reason: replyRequested
-						? "A person asked for a reply"
-						: "A new email arrived from a client",
+					reason,
 					priority: PRIORITY.emailActions,
 					budget: TODOS.email.budget,
-					dueAt,
+					dueAt: new Date(),
 					subject: input.emailThreadId,
 					payload,
 				},
@@ -450,10 +442,10 @@ export class AgentTriggerService {
 			message: "Agent task queued",
 			kind: "email-actions",
 			emailThreadId: input.emailThreadId,
-			replyRequested,
+			replyRequested: true,
 		});
 
-		if (replyRequested) this.poke();
+		this.poke();
 	}
 
 	async investorResearchRequested(

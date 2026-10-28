@@ -2,14 +2,26 @@ import { z } from "zod";
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 export const TODOS = {
 	email: {
-		maxAgeMs: 3 * 24 * HOUR_MS,
+		maxAgeMs: 7 * DAY_MS,
 		settleMs: 2 * MINUTE_MS,
+		perTick: 5,
 		dailyLimitPerUser: 60,
 		messagesInBrief: 8,
 		bodyMaxChars: 4_000,
+		budget: 1,
+	},
+	catchUp: {
+		windowMs: 7 * DAY_MS,
+		maxMessages: 150,
+	},
+	notes: {
+		lookbackMs: 90 * DAY_MS,
+		perTick: 3,
+		bodyMaxChars: 20_000,
 		budget: 1,
 	},
 	meetings: {
@@ -58,6 +70,13 @@ export const meetingActionsPayload = z.object({
 });
 
 export type MeetingActionsPayload = z.infer<typeof meetingActionsPayload>;
+
+export const noteActionsPayload = z.object({
+	incomingMeetingNoteId: z.string().trim().min(1),
+	userId: z.string().trim().min(1),
+});
+
+export type NoteActionsPayload = z.infer<typeof noteActionsPayload>;
 
 export const todoSuggestionItem = z.object({
 	kind: z.enum(["REPLY", "TODO"]),

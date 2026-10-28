@@ -23,6 +23,12 @@ const suggestionSourceOutput = z.discriminatedUnion("kind", [
 		title: z.string().nullable(),
 		startsAt: z.string(),
 	}),
+	z.object({
+		kind: z.literal("note"),
+		incomingMeetingNoteId: z.string(),
+		title: z.string(),
+		heldAt: z.string(),
+	}),
 ]);
 
 const suggestionRecordOutput = z
@@ -128,3 +134,19 @@ export const sendReplyOutput = z.object({
 });
 
 export const discardReplyOutput = z.object({ discarded: z.number() });
+
+export const addTodoInput = z.object({
+	title: z
+		.string()
+		.trim()
+		.min(1, "Say what needs doing.")
+		.max(TODOS.suggestions.titleMaxLength),
+	notes: z.string().trim().max(TODOS.suggestions.detailMaxLength).optional(),
+	dueAt: z.string().datetime().nullable().optional(),
+	contactId: z.string().optional(),
+	companyId: z.string().optional(),
+});
+
+export type AddTodoInput = z.infer<typeof addTodoInput>;
+
+export const addTodoOutput = z.object({ id: z.string() });

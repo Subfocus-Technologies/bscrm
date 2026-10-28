@@ -5,6 +5,7 @@ import { meetingNotesPayload } from "@crm/validation/meeting-notes";
 import {
 	emailActionsPayload,
 	meetingActionsPayload,
+	noteActionsPayload,
 } from "@crm/validation/todos";
 import { APP_AUTH, type AppAuth } from "./app-auth";
 import { brandOutcome, runBrand } from "./brand";
@@ -28,7 +29,11 @@ import {
 	type LeasedTask,
 	noteSession,
 } from "./tasks";
-import { preflightEmailActions, preflightMeetingActions } from "./todos";
+import {
+	preflightEmailActions,
+	preflightMeetingActions,
+	preflightNoteActions,
+} from "./todos";
 
 export const VISIBLE_BATCH = DISPATCH.visible.batch;
 export const VISIBLE_CONCURRENCY = DISPATCH.visible.concurrency;
@@ -200,11 +205,17 @@ async function beginResearch(
 		}
 	}
 
-	if (task.kind === "email-actions" || task.kind === "meeting-actions") {
+	if (
+		task.kind === "email-actions" ||
+		task.kind === "meeting-actions" ||
+		task.kind === "note-actions"
+	) {
 		const preflight =
 			task.kind === "email-actions"
 				? await preflightEmailActions(task.payload)
-				: await preflightMeetingActions(task.payload);
+				: task.kind === "meeting-actions"
+					? await preflightMeetingActions(task.payload)
+					: await preflightNoteActions(task.payload);
 		if (preflight.kind === "done") {
 			await completeTask(task.id, preflight.outcome);
 			return;
@@ -342,6 +353,14 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 		const parsed = meetingActionsPayload.safeParse(task.payload);
 		if (parsed.success) {
 			records.calendarEventId = parsed.data.calendarEventId;
+			records.mailboxUserId = parsed.data.userId;
+		}
+	}
+
+	if (task.kind === "note-actions") {
+		const parsed = noteActionsPayload.safeParse(task.payload);
+		if (parsed.success) {
+			records.incomingMeetingNoteId = parsed.data.incomingMeetingNoteId;
 			records.mailboxUserId = parsed.data.userId;
 		}
 	}
@@ -521,6 +540,8 @@ function work(
 			return "Write the email to the investor in your instructions and save it with draft_investor_email. A person approves it before anything is sent.";
 		case "email-actions":
 			return "Read the email conversation in your instructions and work out what our side should do about it, then call propose_todos once. Nothing is sent and nothing becomes a task until a person approves it.";
+		case "note-actions":
+			return "Read the meeting notes in your instructions and call propose_todos once with every action point for our side. Nothing becomes a task until a person approves it.";
 		case "meeting-actions":
 			return "A meeting with this record has ended. Read the record's history, then call propose_todos once with the follow-ups the meeting needs, or with none.";
 		case "business-filing":

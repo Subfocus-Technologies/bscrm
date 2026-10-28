@@ -58,6 +58,7 @@ export class MeetingNotesService {
 	async importNotes(
 		input: MeetingNotesImportInput,
 		actingUserId: string,
+		options: { readForFollowUps: boolean } = { readForFollowUps: true },
 	): Promise<{ activityId: string }> {
 		const records = await this.resolveRecords(input);
 
@@ -81,10 +82,12 @@ export class MeetingNotesService {
 		});
 
 		await this.stamp.touch(records, activity.createdAt);
-		await this.agent.meetingNotesImported({
-			activityId: activity.id,
-			...records,
-		});
+		if (options.readForFollowUps) {
+			await this.agent.meetingNotesImported({
+				activityId: activity.id,
+				...records,
+			});
+		}
 
 		this.logger.log({
 			message: "Meeting notes imported",

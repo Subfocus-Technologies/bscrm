@@ -298,34 +298,46 @@ the tools `add_investors` and `score_investor` are thin.
   investor, refuses more than `maxWords` words, keeps the first subject on
   follow-ups and replaces a waiting draft. The agent never sends.
 
-## To-dos from email and meetings
+## To-dos from email, meetings and meeting notes
 
-Two research-lane tasks fill each person's To-do page. `lib/todos.ts` holds
+Three research-lane tasks fill each person's To-do page. `lib/todos.ts` holds
 every rule; the tool `propose_todos` is thin.
 
-- **`email-actions` reads one email conversation.** `ThreadWriterService`
-  queues it when it stores a new message *from them* that is younger than
-  `TODOS.email.maxAgeMs`, so the first sync of a mailbox does not read its
-  history. The task waits `TODOS.email.settleMs`, and one waiting task per
-  thread absorbs a burst of messages. `AgentTask.subject` is the thread id and
-  the payload names the mailbox owner. `preflightEmailActions` ends it without a
-  session when we sent the last message, and defers it to the next UK day after
-  `TODOS.email.dailyLimitPerUser` sessions for that person.
+- **`email-actions` reads one email conversation.** `queueUnreadEmails` on the
+  dispatch schedule queues it for every stored thread whose last message is
+  younger than `TODOS.email.maxAgeMs` and newer than the last read of it, once
+  that message is `TODOS.email.settleMs` old. It reads conversations where we
+  sent the last message too, because what we promised ("I'll send you
+  something in a couple of days") is a to-do. The owner is whoever's mailbox
+  synced the latest message. `preflightEmailActions` defers it to the next UK
+  day after `TODOS.email.dailyLimitPerUser` sessions for that person.
+- **The first Gmail sync catches up.** Sync is forward-only, so
+  `GmailSyncService` stores the last `TODOS.catchUp.windowMs` of mail once per
+  mailbox (`MailboxSync.caughtUpAt`), at most `TODOS.catchUp.maxMessages`
+  messages, through the ordinary thread writer and its matching rules.
+  Switching on *Add the company and contact when you reply to someone new*
+  clears `caughtUpAt`, so recent conversations with new people are picked up.
 - **`meeting-actions` reads one finished meeting.** The dispatch schedule queues
   it once per calendar meeting with a CRM contact or company, an hour after it
-  ends (`queueEndedMeetings`). A meeting with collected notes is skipped,
-  because the meeting-notes task already reads them.
+  ends (`queueEndedMeetings`). A meeting with collected notes is skipped.
+- **`note-actions` reads one collected Gemini note.** `queueUnreadNotes` queues
+  it once for every note still waiting in its owner's Meeting notes inbox from
+  the last `TODOS.notes.lookbackMs`. Its to-dos go to the owner's To-do page.
+  Filing a note that was already read moves its to-dos onto the chosen record
+  and does not queue the `meeting-notes` reading, so each note is read once.
+  Notes filed before they were read keep the record follow-ups below.
 - **Every item quotes its source.** `propose_todos` drops an item whose quote is
-  not in the emails or the meeting title and description, the same `squash`
-  rule as meeting notes (`lib/quotes.ts`). A REPLY item needs the reply text,
-  at most `TODOS.reply.maxWords` words; it is saved as one `EmailReply` `DRAFT`
-  per thread and person, and a new one replaces it. REPLY is refused for a
-  meeting.
-- **Suggestions are private to the mailbox owner.** `TodoSuggestion.userId` is
-  whose mailbox or calendar the source came from, and every `todos.*` read and
+  not in the emails, the meeting title and description, or the notes, with the
+  same `squash` rule as meeting notes (`lib/quotes.ts`). A REPLY item needs the
+  reply text, at most `TODOS.reply.maxWords` words; it is saved as one
+  `EmailReply` `DRAFT` per thread and person, and a new one replaces it. REPLY
+  is refused for a meeting or a note.
+- **Suggestions are private to their owner.** `TodoSuggestion.userId` is whose
+  mailbox, calendar or notes the source came from, and every `todos.*` read and
   write is scoped to it. *Add to my to-dos* writes a `TASK` activity on the
   record, created by that person. *Ignore* keeps the row, so the agent never
-  suggests it again.
+  suggests it again. `todos.add` writes a task a person types themselves, with
+  or without a record.
 - **The agent never sends.** A person sends a reply from the review panel with
   `todos.sendReply`, from their own Gmail, in the same conversation. *Draft a
   reply* (`todos.requestReply`) queues `email-actions` at once with

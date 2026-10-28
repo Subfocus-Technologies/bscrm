@@ -24,18 +24,13 @@ const agent = {
 	companyCreated: async () => undefined,
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
-	emailNeedsActions: async (input: { emailThreadId: string }) => {
-		todoReads.push(input.emailThreadId);
-	},
 } as unknown as AgentTriggerService;
-
-const todoReads: string[] = [];
 
 const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const threads = new ThreadWriterService(db, match, stamp, agent);
+const threads = new ThreadWriterService(db, match, stamp);
 
 let row: MailboxSync;
 
@@ -212,8 +207,8 @@ describe("storing a synced email", () => {
 	});
 });
 
-describe("passing emails on for to-dos", () => {
-	it("asks for a read of a new email from them, and closes a reply suggestion once we answer", async () => {
+describe("closing answered emails", () => {
+	it("closes a reply suggestion once we answer", async () => {
 		const now = Date.now();
 		const inbound: IncomingMessage = {
 			...message(`<todo-in-${suffix}@mail.test>`, new Date(now - 60_000)),
@@ -232,7 +227,6 @@ describe("passing emails on for to-dos", () => {
 			where: { rootMessageId: rootId },
 			select: { id: true },
 		});
-		expect(todoReads).toContain(thread.id);
 
 		const suggestion = await db.todoSuggestion.create({
 			data: {

@@ -1,6 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
+import { ActivitiesService } from "../src/activities/activities.service";
 import { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import type { GmailClient } from "../src/google/gmail.client";
 import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
 import { EmailReplyService } from "../src/todos/email-reply.service";
@@ -43,6 +45,7 @@ const tokens = {
 } as unknown as MailboxTokenService;
 
 const agent = new AgentTriggerService(db);
+const stamp = new ActivityStampService(db);
 const todos = new TodosService(db);
 const replies = new EmailReplyService(db, agent, gmail, tokens);
 
@@ -178,6 +181,54 @@ describe("to-do suggestions", () => {
 
 		expect(ignored.total).toBe(1);
 		expect(back.total).toBe(1);
+	});
+});
+
+describe("adding a to-do by hand", () => {
+	it("adds a task with or without a client, owned by the person who added it", async () => {
+		const linked = await todos.add(
+			{
+				title: "Send Pradeep Marylebone office options",
+				dueAt: "2026-10-30T09:00:00.000Z",
+				contactId,
+			},
+			userId,
+		);
+		const loose = await todos.add({ title: "Renew the domain" }, userId);
+
+		const tasks = await db.activity.findMany({
+			where: { id: { in: [linked.id, loose.id] } },
+			orderBy: { subject: "asc" },
+			select: {
+				type: true,
+				subject: true,
+				contactId: true,
+				dueAt: true,
+				createdById: true,
+			},
+		});
+		expect(tasks).toEqual([
+			{
+				type: "TASK",
+				subject: "Renew the domain",
+				contactId: null,
+				dueAt: null,
+				createdById: userId,
+			},
+			{
+				type: "TASK",
+				subject: "Send Pradeep Marylebone office options",
+				contactId,
+				dueAt: new Date("2026-10-30T09:00:00.000Z"),
+				createdById: userId,
+			},
+		]);
+
+		const page = await new ActivitiesService(db, stamp).myTaskPage(
+			{ view: "open", page: 1 },
+			userId,
+		);
+		expect(page.counts.open).toBe(2);
 	});
 });
 

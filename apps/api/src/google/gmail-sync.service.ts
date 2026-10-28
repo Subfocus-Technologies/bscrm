@@ -4,6 +4,7 @@ import {
 	type MailboxSyncModel as MailboxSync,
 } from "@crm/db";
 import { noticeInvestorReply } from "@crm/db/investors";
+import { TODOS } from "@crm/validation/todos";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import type { MatchContext } from "../mailbox/mailbox-match.service";
@@ -96,10 +97,75 @@ export class GmailSyncService {
 			: await this.start(row, profile.data.historyId ?? null);
 
 		if (outcome.status === "synced") {
+			await this.catchUp(row, token.accessToken, mailbox);
 			await this.collectGeminiNotes(row.userId, token.accessToken);
 		}
 
 		return outcome;
+	}
+
+	private async catchUp(
+		row: MailboxSync,
+		accessToken: string,
+		mailbox: string,
+	): Promise<void> {
+		if (row.caughtUpAt) return;
+
+		try {
+			const now = new Date();
+			const after = new Date(now.getTime() - TODOS.catchUp.windowMs);
+			const ids: string[] = [];
+			let pageToken: string | undefined;
+
+			do {
+				const page = await this.gmail.listMessages(accessToken, {
+					after,
+					before: now,
+					pageToken,
+				});
+				if (page.outcome !== "ok") {
+					this.logger.warn({
+						message: "Could not list recent mail to catch up",
+						userId: row.userId,
+						outcome: page.outcome,
+					});
+					return;
+				}
+				for (const message of page.data.messages ?? []) {
+					if (message.id) ids.push(message.id);
+				}
+				pageToken = page.data.nextPageToken;
+			} while (pageToken && ids.length < TODOS.catchUp.maxMessages);
+
+			const recent = ids.slice(0, TODOS.catchUp.maxMessages);
+			let written = 0;
+			for (
+				let start = 0;
+				start < recent.length;
+				start += MAX_MESSAGES_PER_TICK
+			) {
+				const stored = await this.ingest(
+					row,
+					accessToken,
+					mailbox,
+					recent.slice(start, start + MAX_MESSAGES_PER_TICK),
+				);
+				written += stored.written;
+			}
+
+			await this.state.markCaughtUp(row.id);
+			this.logger.log({
+				message: "Gmail caught up on recent mail",
+				userId: row.userId,
+				listed: recent.length,
+				messagesWritten: written,
+			});
+		} catch (error) {
+			this.logger.error(
+				{ message: "Catching up on recent mail threw", userId: row.userId },
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
 	}
 
 	private async collectGeminiNotes(

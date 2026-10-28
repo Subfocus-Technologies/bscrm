@@ -323,6 +323,9 @@ export class IncomingNotesService {
 		});
 
 		try {
+			const readForTodos = await this.db.agentTask.count({
+				where: { kind: "note-actions", subject: id },
+			});
 			const { activityId } = await this.notes.importNotes(
 				{
 					...record,
@@ -333,12 +336,22 @@ export class IncomingNotesService {
 					calendarEventId: note.calendarEventId ?? undefined,
 				},
 				userId,
+				{ readForFollowUps: readForTodos === 0 },
 			);
 
-			await this.db.incomingMeetingNote.update({
-				where: { id },
-				data: { activityId },
-			});
+			await this.db.$transaction([
+				this.db.incomingMeetingNote.update({
+					where: { id },
+					data: { activityId },
+				}),
+				this.db.todoSuggestion.updateMany({
+					where: { incomingMeetingNoteId: id },
+					data: {
+						contactId: record.contactId ?? null,
+						companyId: record.companyId ?? null,
+					},
+				}),
+			]);
 
 			if (sameMeeting) {
 				await this.db.incomingMeetingNote.updateMany({

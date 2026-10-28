@@ -13,7 +13,11 @@ import {
 import { capabilitiesMarkdown } from "./capabilities";
 import { investorPreamble } from "./investors";
 import { meetingNotesMarkdown } from "./meeting-notes";
-import { emailActionsMarkdown, meetingActionsMarkdown } from "./todos";
+import {
+	emailActionsMarkdown,
+	meetingActionsMarkdown,
+	noteActionsMarkdown,
+} from "./todos";
 import { identity, usMarkdown, type WorkspaceIdentity } from "./workspace";
 
 export type Opened = {
@@ -28,6 +32,7 @@ export type Opened = {
 	investorId?: string | null;
 	emailThreadId?: string | null;
 	calendarEventId?: string | null;
+	incomingMeetingNoteId?: string | null;
 	mailboxUserId?: string | null;
 	replyRequested?: boolean;
 	replyInstructions?: string | null;
@@ -87,6 +92,13 @@ async function todosMarkdown(opened: Opened): Promise<string> {
 			userId: opened.mailboxUserId,
 			replyRequested: opened.replyRequested ?? false,
 			instructions: opened.replyInstructions ?? null,
+		});
+	}
+
+	if (opened.kind === "note-actions" && opened.incomingMeetingNoteId) {
+		return noteActionsMarkdown({
+			incomingMeetingNoteId: opened.incomingMeetingNoteId,
+			userId: opened.mailboxUserId,
 		});
 	}
 

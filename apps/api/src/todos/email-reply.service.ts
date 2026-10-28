@@ -84,12 +84,11 @@ export class EmailReplyService {
 			);
 		}
 
-		await this.agent.emailNeedsActions({
+		await this.agent.emailReplyRequested({
 			emailThreadId: thread.id,
 			userId: actingUserId,
 			contactId: thread.contactId,
 			companyId: thread.companyId,
-			replyRequested: true,
 			instructions: input.instructions || null,
 		});
 

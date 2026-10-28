@@ -7,9 +7,7 @@ import {
 	Prisma as PrismaNamespace,
 	RecordSource,
 } from "@crm/db";
-import { TODOS } from "@crm/validation/todos";
 import { Injectable, Logger } from "@nestjs/common";
-import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import type { SyncSource } from "./mailbox.constants";
@@ -41,7 +39,6 @@ export class ThreadWriterService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly match: MailboxMatchService,
 		private readonly stamp: ActivityStampService,
-		private readonly agent: AgentTriggerService,
 	) {}
 
 	async context(): Promise<MatchContext> {
@@ -207,57 +204,33 @@ export class ThreadWriterService {
 			parsed.rfcMessageId,
 		);
 
-		if (!repair) {
-			await this.noticeForTodos({
-				emailThreadId: stored.threadId,
-				userId: row.userId,
-				outbound,
-				sentAt: parsed.sentAt,
-				contactId,
-				companyId,
-				rfcMessageId: parsed.rfcMessageId,
-			});
+		if (!repair && outbound) {
+			await this.answered(stored.threadId, parsed.sentAt, parsed.rfcMessageId);
 		}
 
 		return !repair;
 	}
 
-	private async noticeForTodos(input: {
-		emailThreadId: string;
-		userId: string;
-		outbound: boolean;
-		sentAt: Date;
-		contactId: string | null;
-		companyId: string | null;
-		rfcMessageId: string;
-	}): Promise<void> {
+	private async answered(
+		emailThreadId: string,
+		at: Date,
+		rfcMessageId: string,
+	): Promise<void> {
 		try {
-			if (input.outbound) {
-				await this.answered(input.emailThreadId, input.sentAt);
-				return;
-			}
-
-			if (Date.now() - input.sentAt.getTime() > TODOS.email.maxAgeMs) return;
-
-			await this.agent.emailNeedsActions({
-				emailThreadId: input.emailThreadId,
-				userId: input.userId,
-				contactId: input.contactId,
-				companyId: input.companyId,
-			});
+			await this.closeAnswered(emailThreadId, at);
 		} catch (error) {
 			this.logger.error(
 				{
-					message: "An email was stored but was not passed on for to-dos",
-					rfcMessageId: input.rfcMessageId,
-					emailThreadId: input.emailThreadId,
+					message: "An answer was stored but its reply suggestions stayed open",
+					rfcMessageId,
+					emailThreadId,
 				},
 				error instanceof Error ? error.stack : String(error),
 			);
 		}
 	}
 
-	private async answered(emailThreadId: string, at: Date): Promise<void> {
+	private async closeAnswered(emailThreadId: string, at: Date): Promise<void> {
 		await this.db.$transaction([
 			this.db.todoSuggestion.updateMany({
 				where: {

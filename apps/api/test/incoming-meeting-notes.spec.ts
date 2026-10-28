@@ -237,6 +237,46 @@ describe("the meeting notes inbox", () => {
 		).rejects.toThrow("Someone already filed or changed these notes.");
 	});
 
+	it("moves to-dos already read from a note onto the record, without reading it again", async () => {
+		await incoming.receive(note(`Read ${suffix}`));
+		const row = await db.incomingMeetingNote.findFirstOrThrow({
+			where: { mailboxUserId: userId },
+			select: { id: true },
+		});
+		await db.agentTask.create({
+			data: {
+				kind: "note-actions",
+				reason: "test",
+				dueAt: new Date(),
+				subject: row.id,
+				finishedAt: new Date(),
+			},
+		});
+		const suggestion = await db.todoSuggestion.create({
+			data: {
+				userId,
+				kind: "TODO",
+				title: "Send the pricing sheet",
+				quote: "Send the pricing sheet by Friday.",
+				position: 0,
+				incomingMeetingNoteId: row.id,
+			},
+			select: { id: true },
+		});
+		const before = read.length;
+
+		await incoming.file({ id: row.id, companyId }, userId);
+
+		expect(read).toHaveLength(before);
+		expect(
+			await db.todoSuggestion.findUniqueOrThrow({
+				where: { id: suggestion.id },
+				select: { companyId: true },
+			}),
+		).toEqual({ companyId });
+		await db.agentTask.deleteMany({ where: { subject: row.id } });
+	});
+
 	it("files a note under the contact its owner chooses", async () => {
 		await incoming.receive(note(`Call ${suffix}`));
 		const row = await db.incomingMeetingNote.findFirstOrThrow({

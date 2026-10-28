@@ -13,6 +13,8 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import { EmailReplyService } from "./email-reply.service";
 import {
+	addTodoInput,
+	addTodoOutput,
 	discardReplyOutput,
 	requestReplyInput,
 	requestReplyOutput,
@@ -45,6 +47,18 @@ export class TodosRouter {
 		@Input() input: z.infer<typeof suggestionsInput>,
 	) {
 		return this.todos.suggestions(input, ctx.user.id);
+	}
+
+	@Mutation({
+		input: addTodoInput,
+		output: addTodoOutput,
+		meta: restMeta("POST", "/todos", ["To-dos"]),
+	})
+	async add(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof addTodoInput>,
+	) {
+		return this.todos.add(input, ctx.user.id);
 	}
 
 	@Mutation({

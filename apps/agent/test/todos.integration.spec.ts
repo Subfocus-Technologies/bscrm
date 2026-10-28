@@ -2,8 +2,11 @@ import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { db } from "@crm/db";
 import {
 	preflightEmailActions,
+	preflightNoteActions,
 	proposeTodos,
 	queueEndedMeetings,
+	queueUnreadEmails,
+	queueUnreadNotes,
 } from "../agent/lib/todos";
 
 const suffix = process.env.TEST_RUN_ID ?? "todos-spec";
@@ -11,6 +14,7 @@ const email = `client.${suffix}@example.test`;
 const userId = `todos-user-${suffix}`;
 const rootId = `<todos-${suffix}@mail.test>`;
 const iCalUid = `todos-${suffix}@calendar.test`;
+const noteMessageId = `todos-note-${suffix}`;
 
 let contactId = "";
 let emailThreadId = "";
@@ -19,7 +23,17 @@ const sentAt = new Date("2026-10-20T09:00:00Z");
 
 async function clean() {
 	await db.agentTask.deleteMany({
-		where: { kind: "meeting-actions", contactId },
+		where: {
+			kind: { in: ["meeting-actions", "email-actions", "note-actions"] },
+			OR: [
+				{ contactId },
+				{ subject: emailThreadId },
+				{ reason: { contains: "Gemini" } },
+			],
+		},
+	});
+	await db.incomingMeetingNote.deleteMany({
+		where: { gmailMessageId: noteMessageId },
 	});
 	await db.calendarEvent.deleteMany({ where: { iCalUid } });
 	await db.emailThread.deleteMany({ where: { rootMessageId: rootId } });
@@ -181,12 +195,15 @@ describe("proposeTodos for an email", () => {
 });
 
 describe("preflightEmailActions", () => {
-	it("skips a conversation where we sent the last message", async () => {
-		await addMessage("OUTBOUND", "Here you go.");
+	it("reads a conversation where we sent the last message, for what we promised", async () => {
+		await addMessage(
+			"OUTBOUND",
+			"I'll send you something in the next couple of days.",
+		);
 
 		const outcome = await preflightEmailActions({ emailThreadId, userId });
 
-		expect(outcome.kind).toBe("done");
+		expect(outcome.kind).toBe("research");
 	});
 
 	it("still drafts a reply a person asked for", async () => {
@@ -245,5 +262,89 @@ describe("meetings", () => {
 		expect(outcome.dropped[0]?.reason).toBe(
 			"A REPLY item is only for an email conversation.",
 		);
+	});
+});
+
+describe("catching up on email", () => {
+	it("reads each conversation once for each new message", async () => {
+		const now = new Date();
+		await db.emailMessage.updateMany({
+			where: { threadId: emailThreadId },
+			data: { syncedByUserId: userId },
+		});
+		await db.emailThread.update({
+			where: { id: emailThreadId },
+			data: { lastMessageAt: new Date(now.getTime() - 10 * 60_000) },
+		});
+
+		await queueUnreadEmails(now);
+		await queueUnreadEmails(now);
+		const tasks = await db.agentTask.findMany({
+			where: { kind: "email-actions", subject: emailThreadId },
+			select: { payload: true },
+		});
+
+		expect(tasks).toHaveLength(1);
+		expect(tasks[0]?.payload).toMatchObject({ emailThreadId, userId });
+
+		await db.emailThread.update({
+			where: { id: emailThreadId },
+			data: { lastMessageAt: new Date(now.getTime() + 60_000) },
+		});
+		await queueUnreadEmails(new Date(now.getTime() + 10 * 60_000));
+		expect(
+			await db.agentTask.count({
+				where: { kind: "email-actions", subject: emailThreadId },
+			}),
+		).toBe(2);
+	});
+});
+
+describe("Gemini meeting notes", () => {
+	it("reads every new note once and saves its action points", async () => {
+		const note = await db.incomingMeetingNote.create({
+			data: {
+				gmailMessageId: noteMessageId,
+				mailboxUserId: userId,
+				source: "GEMINI",
+				subject: "Notes: Marylebone search",
+				title: "Marylebone search",
+				body: "Action items\n- Sayu to send Pradeep office options in Marylebone by Friday.",
+				heldAt: new Date(),
+			},
+			select: { id: true },
+		});
+
+		await queueUnreadNotes();
+		await queueUnreadNotes();
+		expect(
+			await db.agentTask.count({
+				where: { kind: "note-actions", subject: note.id },
+			}),
+		).toBe(1);
+
+		const outcome = await proposeTodos(
+			{ kind: "note", incomingMeetingNoteId: note.id, userId },
+			[
+				{
+					...call,
+					title: "Send Pradeep Marylebone office options",
+					dueDate: null,
+					quote: "Sayu to send Pradeep office options in Marylebone",
+				},
+			],
+			null,
+		);
+		expect(outcome.saved).toBe(1);
+
+		await db.incomingMeetingNote.update({
+			where: { id: note.id },
+			data: { status: "IGNORED" },
+		});
+		const preflight = await preflightNoteActions({
+			incomingMeetingNoteId: note.id,
+			userId,
+		});
+		expect(preflight.kind).toBe("done");
 	});
 });

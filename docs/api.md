@@ -230,10 +230,11 @@ Two rules follow for the serverless build:
   (`apps/api/src/todos`) sends a reply to the last message from them in a
   stored thread, with `In-Reply-To` and `References`, and with the Gmail
   `threadId` when the sender's own mailbox synced that message. It uses the
-  same `gmail.send` grant as investor emails. `ThreadWriterService` hands each
-  newly stored message to the To-do pipeline: a recent message from them queues
-  `email-actions`, and a message from us closes waiting reply suggestions. See
-  `docs/agent.md`.
+  same `gmail.send` grant as investor emails. When `ThreadWriterService`
+  stores a message from us, it closes waiting reply suggestions on that thread.
+  The agent decides which conversations to read; see `docs/agent.md`.
+- **The first Gmail sync stores the last week of mail once.** See the
+  catch-up rule in `docs/agent.md`.
 - **The header's next-meeting window reads Google Calendar live.** `meetings.mine`
   (`NextMeetingsService`) lists the signed-in person's own next timed meetings
   that they have not declined, internal ones included, because the sync stores

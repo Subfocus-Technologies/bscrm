@@ -4,6 +4,7 @@ import { nextWorkspaceDayStart, workspaceDayStart } from "@crm/db/day";
 import {
 	emailActionsPayload,
 	meetingActionsPayload,
+	noteActionsPayload,
 	replyBody,
 	replySubject,
 	TODOS,
@@ -18,7 +19,8 @@ const MAX_DUE_DAYS_AHEAD = 366;
 
 export type TodoSource =
 	| { kind: "email"; emailThreadId: string; userId: string }
-	| { kind: "meeting"; calendarEventId: string; userId: string };
+	| { kind: "meeting"; calendarEventId: string; userId: string }
+	| { kind: "note"; incomingMeetingNoteId: string; userId: string };
 
 export type ProposeTodosOutcome = {
 	saved: number;
@@ -103,6 +105,29 @@ async function loadMeeting(calendarEventId: string) {
 	});
 }
 
+async function loadNote(incomingMeetingNoteId: string) {
+	const note = await db.incomingMeetingNote.findUnique({
+		where: { id: incomingMeetingNoteId },
+		select: {
+			title: true,
+			body: true,
+			heldAt: true,
+			status: true,
+			activity: { select: { contactId: true, companyId: true } },
+			calendarEvent: { select: { contactId: true, companyId: true } },
+		},
+	});
+	if (!note) return null;
+
+	const record = note.activity ?? note.calendarEvent;
+	return {
+		...note,
+		body: note.body.slice(0, TODOS.notes.bodyMaxChars),
+		contactId: record?.contactId ?? null,
+		companyId: record?.companyId ?? null,
+	};
+}
+
 async function sourceContext(
 	source: TodoSource,
 ): Promise<SourceContext | null> {
@@ -127,6 +152,20 @@ async function sourceContext(
 		};
 	}
 
+	if (source.kind === "note") {
+		const note = await loadNote(source.incomingMeetingNoteId);
+		if (!note) return null;
+
+		return {
+			text: [note.title, note.body].join("\n"),
+			heldAt: note.heldAt,
+			contactId: note.contactId,
+			companyId: note.companyId,
+			replyTo: null,
+			subject: note.title,
+		};
+	}
+
 	const meeting = await loadMeeting(source.calendarEventId);
 	if (!meeting) return null;
 
@@ -141,9 +180,16 @@ async function sourceContext(
 }
 
 function sourceWhere(source: TodoSource): Prisma.TodoSuggestionWhereInput {
-	return source.kind === "email"
-		? { emailThreadId: source.emailThreadId, userId: source.userId }
-		: { calendarEventId: source.calendarEventId, userId: source.userId };
+	if (source.kind === "email") {
+		return { emailThreadId: source.emailThreadId, userId: source.userId };
+	}
+	if (source.kind === "note") {
+		return {
+			incomingMeetingNoteId: source.incomingMeetingNoteId,
+			userId: source.userId,
+		};
+	}
+	return { calendarEventId: source.calendarEventId, userId: source.userId };
 }
 
 function dueAtOf(
@@ -198,10 +244,11 @@ export async function emailActionsMarkdown(
 
 	return [
 		`**This is an email-actions task.** You are reading ${owner}'s mailbox. Below is an email conversation with a client or a contact. Work out what ${owner} should do about it, then call \`propose_todos\` once.`,
-		`- A **REPLY** item when the other side is waiting for an answer from ${owner}. Put the reply itself in \`reply\`: written as ${owner}, British English, plain text, at most ${TODOS.reply.maxWords} words, no greeting line repeated from their email, no sign-off name (it is added when sent). Never promise a date, a price or a fact the conversation does not support; say ${owner} will confirm instead.`,
+		`- What ${owner} promised in their own emails is work too: "I'll send you something in the next couple of days" is a TODO, due when they said.`,
+		`- A **REPLY** item only when the last message is from them and they are waiting for an answer from ${owner}. Put the reply itself in \`reply\`: written as ${owner}, British English, plain text, at most ${TODOS.reply.maxWords} words, no greeting line repeated from their email, no sign-off name (it is added when sent). Never promise a date, a price or a fact the conversation does not support; say ${owner} will confirm instead.`,
 		`- A **TODO** item for anything else ${owner} or our team agreed to do or needs to do: send a document, book a call, check something, introduce someone.`,
 		"- Each item quotes the exact words in the emails it comes from, or it is dropped. Give a due date only when the emails say when, and resolve words like 'Friday' against the date of the email.",
-		`- A thank-you, a newsletter, an automated notice, or a conversation where ${owner} already answered needs nothing: call \`propose_todos\` with no items.`,
+		`- A thank-you, a newsletter or an automated notice needs nothing: call \`propose_todos\` with no items.`,
 		"- Never invent work the emails do not contain. Read the record's history only when a name or a commitment is unclear.",
 		replyRequested
 			? `**${owner} asked for a reply to be drafted.** Include one REPLY item and the reply.${
@@ -252,6 +299,36 @@ export async function meetingActionsMarkdown(
 		`When: ${datedLine(meeting.startsAt)} to ${datedLine(meeting.endsAt)} UTC`,
 		meeting.description ? `Description:\n${meeting.description}` : "",
 		attendees ? `Attendees:\n${attendees}` : "",
+	]
+		.filter(Boolean)
+		.join("\n\n");
+}
+
+export async function noteActionsMarkdown(
+	payload: Prisma.JsonValue,
+): Promise<string> {
+	const parsed = noteActionsPayload.safeParse(payload);
+	if (!parsed.success) return "";
+
+	const { incomingMeetingNoteId, userId } = parsed.data;
+	const [note, owner, decided] = await Promise.all([
+		loadNote(incomingMeetingNoteId),
+		ownerName(userId),
+		decidedLines({ kind: "note", incomingMeetingNoteId, userId }),
+	]);
+	if (!note) return "";
+
+	return [
+		`**This is a note-actions task.** Below are Gemini's notes from a meeting in ${owner}'s calendar, held ${note.heldAt.toISOString().slice(0, 10)}. Turn every action point into a to-do for ${owner}'s list, then call \`propose_todos\` once with TODO items only.`,
+		`- Include the action points for ${owner} and for our team. Leave out what only the other side agreed to do, unless ${owner} has to chase it.`,
+		"- Each item quotes the exact words in the notes it comes from, or it is dropped. Give a due date only when the notes say when, and resolve words like 'next Friday' against the meeting date.",
+		"- When the notes hold no action points, call it with no items. Never invent work the notes do not contain.",
+		decided.length > 0
+			? `${owner} already decided these. Do not suggest them again:\n${decided.join("\n")}`
+			: "",
+		`## The notes — \`${incomingMeetingNoteId}\``,
+		`### ${note.title}`,
+		note.body,
 	]
 		.filter(Boolean)
 		.join("\n\n");
@@ -367,6 +444,8 @@ export async function proposeTodos(
 				emailThreadId: source.kind === "email" ? source.emailThreadId : null,
 				calendarEventId:
 					source.kind === "meeting" ? source.calendarEventId : null,
+				incomingMeetingNoteId:
+					source.kind === "note" ? source.incomingMeetingNoteId : null,
 				contactId: context.contactId,
 				companyId: context.companyId,
 			})),
@@ -414,19 +493,11 @@ export async function preflightEmailActions(
 		return { kind: "done", outcome: "The task names no email." };
 	}
 
-	const latest = await db.emailMessage.findFirst({
-		where: { threadId: parsed.data.emailThreadId },
-		orderBy: { sentAt: "desc" },
-		select: { direction: true },
+	const thread = await db.emailThread.count({
+		where: { id: parsed.data.emailThreadId },
 	});
-	if (!latest) return { kind: "done", outcome: "The email is gone." };
+	if (thread === 0) return { kind: "done", outcome: "The email is gone." };
 	if (parsed.data.replyRequested) return { kind: "research" };
-	if (latest.direction === "OUTBOUND") {
-		return {
-			kind: "done",
-			outcome: "We sent the last message, so nothing is waiting on us.",
-		};
-	}
 
 	const used = await db.agentTask.count({
 		where: {
@@ -530,6 +601,151 @@ export async function queueEndedMeetings(now = new Date()): Promise<number> {
 					]
 				: [],
 		),
+	});
+
+	return count;
+}
+
+export async function preflightNoteActions(
+	payload: Prisma.JsonValue,
+): Promise<TodoPreflight> {
+	const parsed = noteActionsPayload.safeParse(payload);
+	if (!parsed.success) {
+		return { kind: "done", outcome: "The task names no meeting notes." };
+	}
+
+	const note = await db.incomingMeetingNote.findUnique({
+		where: { id: parsed.data.incomingMeetingNoteId },
+		select: { status: true },
+	});
+	if (!note) return { kind: "done", outcome: "The meeting notes are gone." };
+	if (note.status !== "NEW") {
+		return {
+			kind: "done",
+			outcome:
+				"The notes were filed, ignored or are a copy, so they are not read here.",
+		};
+	}
+
+	return { kind: "research" };
+}
+
+export async function queueUnreadEmails(now = new Date()): Promise<number> {
+	const { maxAgeMs, settleMs, perTick, budget } = TODOS.email;
+
+	const threads = await db.emailThread.findMany({
+		where: {
+			lastMessageAt: {
+				gte: new Date(now.getTime() - maxAgeMs),
+				lte: new Date(now.getTime() - settleMs),
+			},
+		},
+		orderBy: { lastMessageAt: "desc" },
+		take: perTick * 10,
+		select: {
+			id: true,
+			contactId: true,
+			companyId: true,
+			lastMessageAt: true,
+			messages: {
+				orderBy: { sentAt: "desc" },
+				take: 1,
+				select: { syncedByUserId: true },
+			},
+		},
+	});
+	if (threads.length === 0) return 0;
+
+	const read = await db.agentTask.findMany({
+		where: {
+			kind: "email-actions",
+			subject: { in: threads.map((thread) => thread.id) },
+		},
+		select: { subject: true, createdAt: true },
+	});
+	const lastRead = new Map<string, number>();
+	for (const task of read) {
+		if (!task.subject) continue;
+		lastRead.set(
+			task.subject,
+			Math.max(task.createdAt.getTime(), lastRead.get(task.subject) ?? 0),
+		);
+	}
+
+	const due = threads
+		.flatMap((thread) => {
+			const userId = thread.messages[0]?.syncedByUserId;
+			const unread =
+				(lastRead.get(thread.id) ?? 0) < thread.lastMessageAt.getTime();
+			return userId && unread ? [{ ...thread, userId }] : [];
+		})
+		.slice(0, perTick);
+
+	const { count } = await db.agentTask.createMany({
+		data: due.map((thread) => ({
+			kind: "email-actions",
+			reason: "An email conversation with a client has something new",
+			priority: PRIORITY.emailActions,
+			budget,
+			dueAt: now,
+			subject: thread.id,
+			contactId: thread.contactId,
+			companyId: thread.companyId,
+			payload: {
+				emailThreadId: thread.id,
+				userId: thread.userId,
+				replyRequested: false,
+				instructions: null,
+			} satisfies Prisma.InputJsonValue,
+		})),
+	});
+
+	return count;
+}
+
+export async function queueUnreadNotes(now = new Date()): Promise<number> {
+	const { lookbackMs, perTick, budget } = TODOS.notes;
+
+	const notes = await db.incomingMeetingNote.findMany({
+		where: {
+			status: "NEW",
+			heldAt: { gte: new Date(now.getTime() - lookbackMs) },
+		},
+		orderBy: { heldAt: "desc" },
+		take: perTick * 10,
+		select: {
+			id: true,
+			mailboxUserId: true,
+			calendarEvent: { select: { contactId: true, companyId: true } },
+		},
+	});
+	if (notes.length === 0) return 0;
+
+	const read = await db.agentTask.findMany({
+		where: {
+			kind: "note-actions",
+			subject: { in: notes.map((note) => note.id) },
+		},
+		select: { subject: true },
+	});
+	const done = new Set(read.map((task) => task.subject));
+	const due = notes.filter((note) => !done.has(note.id)).slice(0, perTick);
+
+	const { count } = await db.agentTask.createMany({
+		data: due.map((note) => ({
+			kind: "note-actions",
+			reason: "Gemini meeting notes to read for action points",
+			priority: PRIORITY.noteActions,
+			budget,
+			dueAt: now,
+			subject: note.id,
+			contactId: note.calendarEvent?.contactId ?? null,
+			companyId: note.calendarEvent?.companyId ?? null,
+			payload: {
+				incomingMeetingNoteId: note.id,
+				userId: note.mailboxUserId,
+			} satisfies Prisma.InputJsonValue,
+		})),
 	});
 
 	return count;

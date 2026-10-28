@@ -12,7 +12,11 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
-import type { SuggestionOutput, SuggestionsInput } from "./todos.contracts";
+import type {
+	AddTodoInput,
+	SuggestionOutput,
+	SuggestionsInput,
+} from "./todos.contracts";
 
 const VIEW_STATUSES = {
 	PROPOSED: [TodoSuggestionStatus.PROPOSED],
@@ -52,6 +56,7 @@ function suggestionSelect(userId: string) {
 			},
 		},
 		calendarEvent: { select: { id: true, title: true, startsAt: true } },
+		incomingMeetingNote: { select: { id: true, title: true, heldAt: true } },
 	} satisfies Prisma.TodoSuggestionSelect;
 }
 
@@ -69,6 +74,14 @@ function sourceOf(row: SuggestionRow): SuggestionOutput["source"] {
 			from: from ? (from.fromName ?? from.fromEmail) : null,
 			lastMessageAt: row.emailThread.lastMessageAt.toISOString(),
 			hasDraft: row.emailThread.replies.length > 0,
+		};
+	}
+	if (row.incomingMeetingNote) {
+		return {
+			kind: "note",
+			incomingMeetingNoteId: row.incomingMeetingNote.id,
+			title: row.incomingMeetingNote.title,
+			heldAt: row.incomingMeetingNote.heldAt.toISOString(),
 		};
 	}
 	if (row.calendarEvent) {
@@ -167,6 +180,39 @@ export class TodosService {
 				IGNORED: countOf(VIEW_STATUSES.IGNORED),
 			},
 		};
+	}
+
+	async add(input: AddTodoInput, actingUserId: string) {
+		const contact = input.contactId
+			? await this.db.contact.findUnique({
+					where: { id: input.contactId },
+					select: { id: true, companyId: true },
+				})
+			: null;
+		if (input.contactId && !contact) {
+			throw new NotFoundException(`No contact with id ${input.contactId}.`);
+		}
+
+		const task = await this.db.activity.create({
+			data: {
+				type: ActivityType.TASK,
+				subject: input.title,
+				body: input.notes || null,
+				occurredAt: new Date(),
+				dueAt: input.dueAt ? new Date(input.dueAt) : null,
+				contactId: contact?.id ?? null,
+				companyId: input.companyId ?? contact?.companyId ?? null,
+				createdById: actingUserId,
+			},
+			select: { id: true },
+		});
+
+		this.logger.log({
+			message: "To-do added by hand",
+			taskId: task.id,
+			userId: actingUserId,
+		});
+		return task;
 	}
 
 	async accept(id: string, actingUserId: string) {

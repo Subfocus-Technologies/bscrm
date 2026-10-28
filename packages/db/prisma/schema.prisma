@@ -1519,6 +1519,7 @@ model IncomingMeetingNote {
   parserVersion   Int                       @default(1)
   activityId      String?                   @unique
   activity        Activity?                 @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  todoSuggestions TodoSuggestion[]
   filedById       String?
   filedBy         User?                     @relation("IncomingMeetingNoteFiler", fields: [filedById], references: [id], onDelete: SetNull)
   filedAt         DateTime?
@@ -1554,6 +1555,7 @@ model MailboxSync {
   lastError    String?
   retryAfter   DateTime?
   autoCreate   Boolean          @default(false)
+  caughtUpAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1587,6 +1589,7 @@ model EmailThread {
 
   @@index([companyId, lastMessageAt])
   @@index([contactId, lastMessageAt])
+  @@index([lastMessageAt])
   @@map("emailThread")
 }
 
@@ -2015,33 +2018,36 @@ enum TodoSuggestionStatus {
 }
 
 model TodoSuggestion {
-  id              String               @id @default(cuid())
-  userId          String
-  user            User                 @relation("TodoSuggestionOwner", fields: [userId], references: [id], onDelete: Cascade)
-  kind            TodoSuggestionKind
-  title           String
-  detail          String?
-  dueAt           DateTime?
-  quote           String
-  position        Int
-  emailThreadId   String?
-  emailThread     EmailThread?         @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
-  calendarEventId String?
-  calendarEvent   CalendarEvent?       @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
-  contactId       String?
-  contact         Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  companyId       String?
-  company         Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  status          TodoSuggestionStatus @default(PROPOSED)
-  taskId          String?              @unique
-  task            Activity?            @relation("TodoSuggestionTask", fields: [taskId], references: [id], onDelete: SetNull)
-  decidedAt       DateTime?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  id                    String               @id @default(cuid())
+  userId                String
+  user                  User                 @relation("TodoSuggestionOwner", fields: [userId], references: [id], onDelete: Cascade)
+  kind                  TodoSuggestionKind
+  title                 String
+  detail                String?
+  dueAt                 DateTime?
+  quote                 String
+  position              Int
+  emailThreadId         String?
+  emailThread           EmailThread?         @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
+  calendarEventId       String?
+  calendarEvent         CalendarEvent?       @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+  incomingMeetingNoteId String?
+  incomingMeetingNote   IncomingMeetingNote? @relation(fields: [incomingMeetingNoteId], references: [id], onDelete: Cascade)
+  contactId             String?
+  contact               Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  companyId             String?
+  company               Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  status                TodoSuggestionStatus @default(PROPOSED)
+  taskId                String?              @unique
+  task                  Activity?            @relation("TodoSuggestionTask", fields: [taskId], references: [id], onDelete: SetNull)
+  decidedAt             DateTime?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
 
   @@index([userId, status, createdAt])
   @@index([emailThreadId, userId])
   @@index([calendarEventId, userId])
+  @@index([incomingMeetingNoteId, userId])
   @@map("todoSuggestion")
 }
 

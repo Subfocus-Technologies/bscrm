@@ -10,6 +10,7 @@ export const focus = defineState("crm.focus", () => ({
 	investorId: null as string | null,
 	emailThreadId: null as string | null,
 	calendarEventId: null as string | null,
+	incomingMeetingNoteId: null as string | null,
 	mailboxUserId: null as string | null,
 	replyRequested: false,
 	spent: 0,
@@ -45,6 +46,7 @@ export function focusOn(input: {
 	investorId?: string | null;
 	emailThreadId?: string | null;
 	calendarEventId?: string | null;
+	incomingMeetingNoteId?: string | null;
 	mailboxUserId?: string | null;
 	replyRequested?: boolean;
 }): void {
@@ -58,6 +60,8 @@ export function focusOn(input: {
 		investorId: input.investorId ?? current.investorId,
 		emailThreadId: input.emailThreadId ?? current.emailThreadId,
 		calendarEventId: input.calendarEventId ?? current.calendarEventId,
+		incomingMeetingNoteId:
+			input.incomingMeetingNoteId ?? current.incomingMeetingNoteId,
 		mailboxUserId: input.mailboxUserId ?? current.mailboxUserId,
 		replyRequested: input.replyRequested ?? current.replyRequested,
 	}));
@@ -66,6 +70,7 @@ export function focusOn(input: {
 export type TodoFocus = {
 	emailThreadId: string | null;
 	calendarEventId: string | null;
+	incomingMeetingNoteId: string | null;
 	mailboxUserId: string | null;
 	replyRequested: boolean;
 };
@@ -76,6 +81,7 @@ export function todoFocus(): TodoFocus {
 		return {
 			emailThreadId: state.emailThreadId,
 			calendarEventId: state.calendarEventId,
+			incomingMeetingNoteId: state.incomingMeetingNoteId,
 			mailboxUserId: state.mailboxUserId,
 			replyRequested: state.replyRequested,
 		};
@@ -83,6 +89,7 @@ export function todoFocus(): TodoFocus {
 		return {
 			emailThreadId: null,
 			calendarEventId: null,
+			incomingMeetingNoteId: null,
 			mailboxUserId: null,
 			replyRequested: false,
 		};
