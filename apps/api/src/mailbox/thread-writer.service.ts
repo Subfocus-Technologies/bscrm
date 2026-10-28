@@ -7,7 +7,9 @@ import {
 	Prisma as PrismaNamespace,
 	RecordSource,
 } from "@crm/db";
+import { TODOS } from "@crm/validation/todos";
 import { Injectable, Logger } from "@nestjs/common";
+import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { InjectDatabase } from "../database/database.constants";
 import type { SyncSource } from "./mailbox.constants";
@@ -39,6 +41,7 @@ export class ThreadWriterService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly match: MailboxMatchService,
 		private readonly stamp: ActivityStampService,
+		private readonly agent: AgentTriggerService,
 	) {}
 
 	async context(): Promise<MatchContext> {
@@ -118,10 +121,10 @@ export class ThreadWriterService {
 			}
 		}
 
-		let occurredAt: Date;
+		let stored: { occurredAt: Date; threadId: string };
 
 		try {
-			occurredAt = await this.db.$transaction(async (tx) => {
+			stored = await this.db.$transaction(async (tx) => {
 				const record = existing
 					? { id: existing.threadId }
 					: await tx.emailThread.upsert({
@@ -182,7 +185,7 @@ export class ThreadWriterService {
 
 				await tx.emailThread.update({ where: { id: record.id }, data });
 
-				return this.project(tx, record.id, row.userId, {
+				const occurredAt = await this.project(tx, record.id, row.userId, {
 					subject: parsed.subject ?? "(no subject)",
 					snippet: snippetOf(parsed.body),
 					lastMessageAt,
@@ -190,15 +193,86 @@ export class ThreadWriterService {
 					contactId,
 					origin: options.origin,
 				});
+
+				return { occurredAt, threadId: record.id };
 			});
 		} catch (error) {
 			if (await this.storedElsewhere(error, parsed.rfcMessageId)) return false;
 			throw error;
 		}
 
-		await this.touch({ companyId, contactId }, occurredAt, parsed.rfcMessageId);
+		await this.touch(
+			{ companyId, contactId },
+			stored.occurredAt,
+			parsed.rfcMessageId,
+		);
+
+		if (!repair) {
+			await this.noticeForTodos({
+				emailThreadId: stored.threadId,
+				userId: row.userId,
+				outbound,
+				sentAt: parsed.sentAt,
+				contactId,
+				companyId,
+				rfcMessageId: parsed.rfcMessageId,
+			});
+		}
 
 		return !repair;
+	}
+
+	private async noticeForTodos(input: {
+		emailThreadId: string;
+		userId: string;
+		outbound: boolean;
+		sentAt: Date;
+		contactId: string | null;
+		companyId: string | null;
+		rfcMessageId: string;
+	}): Promise<void> {
+		try {
+			if (input.outbound) {
+				await this.answered(input.emailThreadId, input.sentAt);
+				return;
+			}
+
+			if (Date.now() - input.sentAt.getTime() > TODOS.email.maxAgeMs) return;
+
+			await this.agent.emailNeedsActions({
+				emailThreadId: input.emailThreadId,
+				userId: input.userId,
+				contactId: input.contactId,
+				companyId: input.companyId,
+			});
+		} catch (error) {
+			this.logger.error(
+				{
+					message: "An email was stored but was not passed on for to-dos",
+					rfcMessageId: input.rfcMessageId,
+					emailThreadId: input.emailThreadId,
+				},
+				error instanceof Error ? error.stack : String(error),
+			);
+		}
+	}
+
+	private async answered(emailThreadId: string, at: Date): Promise<void> {
+		await this.db.$transaction([
+			this.db.todoSuggestion.updateMany({
+				where: {
+					emailThreadId,
+					kind: "REPLY",
+					status: "PROPOSED",
+					createdAt: { lte: at },
+				},
+				data: { status: "DONE", decidedAt: new Date() },
+			}),
+			this.db.emailReply.updateMany({
+				where: { emailThreadId, status: "DRAFT", createdAt: { lte: at } },
+				data: { status: "DISCARDED" },
+			}),
+		]);
 	}
 
 	private async storedElsewhere(

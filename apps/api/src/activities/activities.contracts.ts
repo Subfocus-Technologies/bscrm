@@ -89,6 +89,13 @@ export const myTasksInput = z.object({
 
 export type MyTasksInput = z.infer<typeof myTasksInput>;
 
+export const myTaskPageInput = z.object({
+	view: z.enum(["open", "done"]).default("open"),
+	page: z.number().int().min(1).default(1),
+});
+
+export type MyTaskPageInput = z.infer<typeof myTaskPageInput>;
+
 const activityAuthorOutput = z.object({
 	id: z.string(),
 	name: z.string(),
@@ -177,6 +184,13 @@ export const timelineCountsOutput = z.object({
 export type TimelineCounts = z.infer<typeof timelineCountsOutput>;
 
 export const myTasksOutput = z.array(activityEntryOutput);
+
+export const myTaskPageOutput = z.object({
+	rows: z.array(activityEntryOutput),
+	total: z.number(),
+	pageSize: z.number(),
+	counts: z.object({ open: z.number(), done: z.number() }),
+});
 
 export const activityCreateOutput = activityEntryOutput;
 

@@ -24,13 +24,18 @@ const agent = {
 	companyCreated: async () => undefined,
 	withCrmEvents: withDiscardedCrmEvents,
 	companyRequested: async () => true,
+	emailNeedsActions: async (input: { emailThreadId: string }) => {
+		todoReads.push(input.emailThreadId);
+	},
 } as unknown as AgentTriggerService;
+
+const todoReads: string[] = [];
 
 const stamp = new ActivityStampService(db);
 const directory = new CompanyDirectoryService(agent);
 const log = new EnrichmentLogService(db, stamp);
 const match = new MailboxMatchService(db, directory, agent, log);
-const threads = new ThreadWriterService(db, match, stamp);
+const threads = new ThreadWriterService(db, match, stamp, agent);
 
 let row: MailboxSync;
 
@@ -204,5 +209,55 @@ describe("storing a synced email", () => {
 
 		expect(repaired?.messageCount).toBe(2);
 		expect(repaired?.activity).not.toBeNull();
+	});
+});
+
+describe("passing emails on for to-dos", () => {
+	it("asks for a read of a new email from them, and closes a reply suggestion once we answer", async () => {
+		const now = Date.now();
+		const inbound: IncomingMessage = {
+			...message(`<todo-in-${suffix}@mail.test>`, new Date(now - 60_000)),
+			from: { email: person, name: "A Buyer" },
+			recipients: [{ email: mailbox, name: "Test Rep", kind: "to" }],
+		};
+
+		await threads.store(
+			row,
+			{ mailbox, origin: "gmail" },
+			inbound,
+			await threads.context(),
+		);
+
+		const thread = await db.emailThread.findUniqueOrThrow({
+			where: { rootMessageId: rootId },
+			select: { id: true },
+		});
+		expect(todoReads).toContain(thread.id);
+
+		const suggestion = await db.todoSuggestion.create({
+			data: {
+				userId,
+				kind: "REPLY",
+				title: "Answer the buyer",
+				quote: "The numbers",
+				position: 0,
+				emailThreadId: thread.id,
+				createdAt: new Date(now - 30_000),
+			},
+			select: { id: true },
+		});
+
+		await threads.store(
+			row,
+			{ mailbox, origin: "gmail" },
+			message(`<todo-out-${suffix}@mail.test>`, new Date(now)),
+			await threads.context(),
+		);
+
+		const after = await db.todoSuggestion.findUniqueOrThrow({
+			where: { id: suggestion.id },
+			select: { status: true },
+		});
+		expect(after.status).toBe("DONE");
 	});
 });

@@ -38,6 +38,14 @@ export default defineDynamic({
 			const activityId = attributeText.parse(attributes.activityId);
 			const fundraiseId = attributeText.parse(attributes.fundraiseId);
 			const investorId = attributeText.parse(attributes.investorId);
+			const emailThreadId = attributeText.parse(attributes.emailThreadId);
+			const calendarEventId = attributeText.parse(attributes.calendarEventId);
+			const mailboxUserId = attributeText.parse(attributes.mailboxUserId);
+			const replyRequested =
+				attributeText.parse(attributes.replyRequested) === "true";
+			const replyInstructions = attributeText.parse(
+				attributes.replyInstructions,
+			);
 
 			const { markdown, focus } = await sessionPreamble(
 				{
@@ -54,6 +62,11 @@ export default defineDynamic({
 					activityId,
 					fundraiseId,
 					investorId,
+					emailThreadId,
+					calendarEventId,
+					mailboxUserId,
+					replyRequested,
+					replyInstructions,
 				},
 			);
 
@@ -63,6 +76,10 @@ export default defineDynamic({
 				taskKind: kind,
 				fundraiseId,
 				investorId,
+				emailThreadId,
+				calendarEventId,
+				mailboxUserId,
+				replyRequested,
 			});
 
 			return defineInstructions({

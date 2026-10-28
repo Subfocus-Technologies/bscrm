@@ -51,6 +51,8 @@ model User {
   createdInvestors            Investor[]            @relation("InvestorCreator")
   movedInvestors              Investor[]            @relation("InvestorStageMover")
   sentInvestorEmails          InvestorEmail[]       @relation("InvestorEmailSender")
+  todoSuggestions             TodoSuggestion[]      @relation("TodoSuggestionOwner")
+  emailReplies                EmailReply[]          @relation("EmailReplyAuthor")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -346,6 +348,7 @@ model Company {
   activities          Activity[]
   emailThreads        EmailThread[]
   calendarEvents      CalendarEvent[]
+  todoSuggestions     TodoSuggestion[]
   fieldValues         FieldValue[]
   businesses          CompanyBusiness[]
   businessSuggestions BusinessSuggestion[]
@@ -409,6 +412,7 @@ model Contact {
   activities          Activity[]
   emailThreads        EmailThread[]
   calendarEvents      CalendarEvent[]
+  todoSuggestions     TodoSuggestion[]
   eventAttendance     CalendarAttendee[]
   fieldValues         FieldValue[]
   visitors            TrackedVisitor[]     @relation("VisitorContact")
@@ -1303,6 +1307,7 @@ model Activity {
 
   followUps           MeetingFollowUp[]    @relation("MeetingFollowUps")
   createdFromFollowUp MeetingFollowUp?     @relation("FollowUpTask")
+  createdFromTodo     TodoSuggestion?      @relation("TodoSuggestionTask")
   incomingMeetingNote IncomingMeetingNote?
 
   createdAt DateTime @default(now())
@@ -1572,8 +1577,10 @@ model EmailThread {
   lastMessageAt  DateTime
   messageCount   Int      @default(0)
 
-  messages EmailMessage[]
-  activity Activity?
+  messages        EmailMessage[]
+  activity        Activity?
+  todoSuggestions TodoSuggestion[]
+  replies         EmailReply[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1633,9 +1640,10 @@ model CalendarEvent {
   syncedByUserId String?
   googleEventId  String?
 
-  attendees    CalendarAttendee[]
-  activity     Activity?
-  meetingNotes IncomingMeetingNote[]
+  attendees       CalendarAttendee[]
+  activity        Activity?
+  meetingNotes    IncomingMeetingNote[]
+  todoSuggestions TodoSuggestion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1992,4 +2000,74 @@ model WorkspaceRemoval {
   createdAt   DateTime @default(now())
 
   @@map("workspaceRemoval")
+}
+
+enum TodoSuggestionKind {
+  REPLY
+  TODO
+}
+
+enum TodoSuggestionStatus {
+  PROPOSED
+  ACCEPTED
+  DONE
+  IGNORED
+}
+
+model TodoSuggestion {
+  id              String               @id @default(cuid())
+  userId          String
+  user            User                 @relation("TodoSuggestionOwner", fields: [userId], references: [id], onDelete: Cascade)
+  kind            TodoSuggestionKind
+  title           String
+  detail          String?
+  dueAt           DateTime?
+  quote           String
+  position        Int
+  emailThreadId   String?
+  emailThread     EmailThread?         @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
+  calendarEventId String?
+  calendarEvent   CalendarEvent?       @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+  contactId       String?
+  contact         Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  companyId       String?
+  company         Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  status          TodoSuggestionStatus @default(PROPOSED)
+  taskId          String?              @unique
+  task            Activity?            @relation("TodoSuggestionTask", fields: [taskId], references: [id], onDelete: SetNull)
+  decidedAt       DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([emailThreadId, userId])
+  @@index([calendarEventId, userId])
+  @@map("todoSuggestion")
+}
+
+enum EmailReplyStatus {
+  DRAFT
+  SENT
+  DISCARDED
+}
+
+model EmailReply {
+  id             String           @id @default(cuid())
+  emailThreadId  String
+  emailThread    EmailThread      @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User             @relation("EmailReplyAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  toEmail        String
+  subject        String
+  body           String
+  status         EmailReplyStatus @default(DRAFT)
+  gmailMessageId String?
+  rfcMessageId   String?
+  sentAt         DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([emailThreadId, userId, status])
+  @@index([userId, status])
+  @@map("emailReply")
 }

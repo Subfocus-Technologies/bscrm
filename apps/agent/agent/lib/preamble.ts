@@ -13,6 +13,7 @@ import {
 import { capabilitiesMarkdown } from "./capabilities";
 import { investorPreamble } from "./investors";
 import { meetingNotesMarkdown } from "./meeting-notes";
+import { emailActionsMarkdown, meetingActionsMarkdown } from "./todos";
 import { identity, usMarkdown, type WorkspaceIdentity } from "./workspace";
 
 export type Opened = {
@@ -25,6 +26,11 @@ export type Opened = {
 	activityId?: string | null;
 	fundraiseId?: string | null;
 	investorId?: string | null;
+	emailThreadId?: string | null;
+	calendarEventId?: string | null;
+	mailboxUserId?: string | null;
+	replyRequested?: boolean;
+	replyInstructions?: string | null;
 };
 
 export type Preamble = {
@@ -57,6 +63,10 @@ export async function sessionPreamble(
 			: preamble;
 	}
 
+	const todos = await todosMarkdown(opened);
+	if (todos)
+		return { ...preamble, markdown: `${todos}\n\n${preamble.markdown}` };
+
 	if (opened.kind !== "business-filing") return preamble;
 
 	return {
@@ -66,6 +76,28 @@ export async function sessionPreamble(
 			await recentDecisions(),
 		)}\n\n${preamble.markdown}`,
 	};
+}
+
+async function todosMarkdown(opened: Opened): Promise<string> {
+	if (!opened.mailboxUserId) return "";
+
+	if (opened.kind === "email-actions" && opened.emailThreadId) {
+		return emailActionsMarkdown({
+			emailThreadId: opened.emailThreadId,
+			userId: opened.mailboxUserId,
+			replyRequested: opened.replyRequested ?? false,
+			instructions: opened.replyInstructions ?? null,
+		});
+	}
+
+	if (opened.kind === "meeting-actions" && opened.calendarEventId) {
+		return meetingActionsMarkdown({
+			calendarEventId: opened.calendarEventId,
+			userId: opened.mailboxUserId,
+		});
+	}
+
+	return "";
 }
 
 async function investorSessionPreamble(opened: Opened): Promise<Preamble> {

@@ -1,5 +1,6 @@
 import { ActivityType, type Db, type Prisma } from "@crm/db";
 import { activityMeta } from "@crm/validation/activity-meta";
+import { TODOS } from "@crm/validation/todos";
 import {
 	BadRequestException,
 	Injectable,
@@ -12,6 +13,7 @@ import { InjectDatabase } from "../database/database.constants";
 import type {
 	ActivityCreateInput,
 	ActivityEntry,
+	MyTaskPageInput,
 	MyTasksInput,
 	TimelineCounts,
 	TimelineFilter,
@@ -212,6 +214,39 @@ export class ActivitiesService {
 		});
 
 		return tasks.map(serializeEntry);
+	}
+
+	async myTaskPage(input: MyTaskPageInput, actingUserId: string) {
+		const pageSize = TODOS.tasks.pageSize;
+		const mine: Prisma.ActivityWhereInput = {
+			type: ActivityType.TASK,
+			createdById: actingUserId,
+		};
+		const open = { ...mine, completedAt: null };
+		const done = { ...mine, completedAt: { not: null } };
+		const where = input.view === "open" ? open : done;
+
+		const [rows, openCount, doneCount] = await Promise.all([
+			this.db.activity.findMany({
+				where,
+				skip: (input.page - 1) * pageSize,
+				take: pageSize,
+				orderBy:
+					input.view === "open"
+						? [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }]
+						: [{ completedAt: "desc" }],
+				select: ENTRY_SELECT,
+			}),
+			this.db.activity.count({ where: open }),
+			this.db.activity.count({ where: done }),
+		]);
+
+		return {
+			rows: rows.map(serializeEntry),
+			total: input.view === "open" ? openCount : doneCount,
+			pageSize,
+			counts: { open: openCount, done: doneCount },
+		};
 	}
 
 	private anchor(

@@ -20,6 +20,8 @@ const STEPS = {
 	"investor-discovery": "Looking for new investors",
 	"investor-research": "Researching and scoring an investor",
 	"investor-outreach": "Writing an email to an investor",
+	"email-actions": "Reading an email for things to do",
+	"meeting-actions": "Reading a meeting for things to do",
 } satisfies Record<TaskKind, string>;
 
 const STEP_BY_KIND = new Map<string, string>(Object.entries(STEPS));

@@ -2,6 +2,10 @@ import { EnrichmentStatus } from "@crm/db";
 import { crmEventTask } from "@crm/validation/agent-events";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { meetingNotesPayload } from "@crm/validation/meeting-notes";
+import {
+	emailActionsPayload,
+	meetingActionsPayload,
+} from "@crm/validation/todos";
 import { APP_AUTH, type AppAuth } from "./app-auth";
 import { brandOutcome, runBrand } from "./brand";
 import { preflightFiling, queueFilingForEvent } from "./business-filing";
@@ -24,6 +28,7 @@ import {
 	type LeasedTask,
 	noteSession,
 } from "./tasks";
+import { preflightEmailActions, preflightMeetingActions } from "./todos";
 
 export const VISIBLE_BATCH = DISPATCH.visible.batch;
 export const VISIBLE_CONCURRENCY = DISPATCH.visible.concurrency;
@@ -195,6 +200,21 @@ async function beginResearch(
 		}
 	}
 
+	if (task.kind === "email-actions" || task.kind === "meeting-actions") {
+		const preflight =
+			task.kind === "email-actions"
+				? await preflightEmailActions(task.payload)
+				: await preflightMeetingActions(task.payload);
+		if (preflight.kind === "done") {
+			await completeTask(task.id, preflight.outcome);
+			return;
+		}
+		if (preflight.kind === "deferred") {
+			await deferTask(task.id, preflight.until, preflight.reason);
+			return;
+		}
+	}
+
 	if (task.kind === "business-filing") {
 		const preflight = await preflightFiling(task);
 		if (preflight.kind === "done") {
@@ -304,6 +324,26 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 		const parsed = investorPayload(task.payload);
 		if (parsed) records.fundraiseId = parsed.fundraiseId;
 		if (parsed?.investorId) records.investorId = parsed.investorId;
+	}
+
+	if (task.kind === "email-actions") {
+		const parsed = emailActionsPayload.safeParse(task.payload);
+		if (parsed.success) {
+			records.emailThreadId = parsed.data.emailThreadId;
+			records.mailboxUserId = parsed.data.userId;
+			if (parsed.data.replyRequested) records.replyRequested = "true";
+			if (parsed.data.instructions) {
+				records.replyInstructions = parsed.data.instructions;
+			}
+		}
+	}
+
+	if (task.kind === "meeting-actions") {
+		const parsed = meetingActionsPayload.safeParse(task.payload);
+		if (parsed.success) {
+			records.calendarEventId = parsed.data.calendarEventId;
+			records.mailboxUserId = parsed.data.userId;
+		}
 	}
 
 	return {
@@ -479,6 +519,10 @@ function work(
 			return "Research the investor in your instructions, then call score_investor once with a verdict and a source for every criterion in the profile.";
 		case "investor-outreach":
 			return "Write the email to the investor in your instructions and save it with draft_investor_email. A person approves it before anything is sent.";
+		case "email-actions":
+			return "Read the email conversation in your instructions and work out what our side should do about it, then call propose_todos once. Nothing is sent and nothing becomes a task until a person approves it.";
+		case "meeting-actions":
+			return "A meeting with this record has ended. Read the record's history, then call propose_todos once with the follow-ups the meeting needs, or with none.";
 		case "business-filing":
 			return "Decide which of our businesses this record belongs to. Read its history first, then call file_into_business once per business it belongs to, citing the emails or meetings that show it. If nothing points anywhere, file nothing and say so.";
 		case "field-backfill": {

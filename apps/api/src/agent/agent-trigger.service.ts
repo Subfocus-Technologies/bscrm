@@ -6,6 +6,7 @@ import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { queueInvestorTasks } from "@crm/db/investors";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { INVESTORS, type InvestorTaskPayload } from "@crm/validation/investors";
+import { type EmailActionsPayload, TODOS } from "@crm/validation/todos";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { AGENT_DISPATCH } from "./agent-dispatch.config";
@@ -388,6 +389,71 @@ export class AgentTriggerService {
 		});
 
 		this.poke();
+	}
+
+	async emailNeedsActions(input: {
+		emailThreadId: string;
+		userId: string;
+		contactId: string | null;
+		companyId: string | null;
+		replyRequested?: boolean;
+		instructions?: string | null;
+	}): Promise<void> {
+		const replyRequested = input.replyRequested ?? false;
+		const payload = {
+			emailThreadId: input.emailThreadId,
+			userId: input.userId,
+			replyRequested,
+			instructions: input.instructions ?? null,
+		} satisfies EmailActionsPayload;
+		const dueAt = replyRequested
+			? new Date()
+			: new Date(Date.now() + TODOS.email.settleMs);
+
+		const waiting = await this.db.agentTask.findFirst({
+			where: {
+				kind: "email-actions",
+				subject: input.emailThreadId,
+				finishedAt: null,
+				leasedUntil: null,
+				sessionId: null,
+			},
+			select: { id: true },
+		});
+
+		if (waiting && !replyRequested) return;
+
+		if (waiting) {
+			await this.db.agentTask.update({
+				where: { id: waiting.id },
+				data: { payload, dueAt, reason: "A person asked for a reply" },
+			});
+		} else {
+			await this.db.agentTask.create({
+				data: {
+					contactId: input.contactId,
+					companyId: input.companyId,
+					kind: "email-actions",
+					reason: replyRequested
+						? "A person asked for a reply"
+						: "A new email arrived from a client",
+					priority: PRIORITY.emailActions,
+					budget: TODOS.email.budget,
+					dueAt,
+					subject: input.emailThreadId,
+					payload,
+				},
+			});
+		}
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "email-actions",
+			emailThreadId: input.emailThreadId,
+			replyRequested,
+		});
+
+		if (replyRequested) this.poke();
 	}
 
 	async investorResearchRequested(

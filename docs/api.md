@@ -226,6 +226,14 @@ Two rules follow for the serverless build:
   to `noticeInvestorReply` (`@crm/db/investors`): a message from someone else
   in a sent investor thread moves the investor to `REPLIED` and cancels their
   drafts.
+- **Replies go out from the sender's own Gmail too.** `EmailReplyService`
+  (`apps/api/src/todos`) sends a reply to the last message from them in a
+  stored thread, with `In-Reply-To` and `References`, and with the Gmail
+  `threadId` when the sender's own mailbox synced that message. It uses the
+  same `gmail.send` grant as investor emails. `ThreadWriterService` hands each
+  newly stored message to the To-do pipeline: a recent message from them queues
+  `email-actions`, and a message from us closes waiting reply suggestions. See
+  `docs/agent.md`.
 - **The header's next-meeting window reads Google Calendar live.** `meetings.mine`
   (`NextMeetingsService`) lists the signed-in person's own next timed meetings
   that they have not declined, internal ones included, because the sync stores

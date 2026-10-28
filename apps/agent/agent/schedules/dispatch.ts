@@ -10,6 +10,7 @@ import { brief, drainAll, taskAuth } from "../lib/dispatch";
 import { queueDueFollowUps } from "../lib/investor-outreach";
 import { queueScheduledDiscovery } from "../lib/investors";
 import { reconcileStaleTasks } from "../lib/stale-tasks";
+import { queueEndedMeetings } from "../lib/todos";
 
 export default defineSchedule({
 	cron: "* * * * *",
@@ -19,6 +20,7 @@ export default defineSchedule({
 				sweepBlankFacts(),
 				queueScheduledDiscovery(),
 				queueDueFollowUps(),
+				queueEndedMeetings(),
 
 				(async () => {
 					await reconcileStaleTasks();

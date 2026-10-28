@@ -8,6 +8,10 @@ export const focus = defineState("crm.focus", () => ({
 	taskKind: null as string | null,
 	fundraiseId: null as string | null,
 	investorId: null as string | null,
+	emailThreadId: null as string | null,
+	calendarEventId: null as string | null,
+	mailboxUserId: null as string | null,
+	replyRequested: false,
 	spent: 0,
 	budget: 4,
 	exhausted: false,
@@ -39,6 +43,10 @@ export function focusOn(input: {
 	taskKind?: string | null;
 	fundraiseId?: string | null;
 	investorId?: string | null;
+	emailThreadId?: string | null;
+	calendarEventId?: string | null;
+	mailboxUserId?: string | null;
+	replyRequested?: boolean;
 }): void {
 	focus.update((current) => ({
 		...current,
@@ -48,7 +56,37 @@ export function focusOn(input: {
 		taskKind: input.taskKind ?? current.taskKind,
 		fundraiseId: input.fundraiseId ?? current.fundraiseId,
 		investorId: input.investorId ?? current.investorId,
+		emailThreadId: input.emailThreadId ?? current.emailThreadId,
+		calendarEventId: input.calendarEventId ?? current.calendarEventId,
+		mailboxUserId: input.mailboxUserId ?? current.mailboxUserId,
+		replyRequested: input.replyRequested ?? current.replyRequested,
 	}));
+}
+
+export type TodoFocus = {
+	emailThreadId: string | null;
+	calendarEventId: string | null;
+	mailboxUserId: string | null;
+	replyRequested: boolean;
+};
+
+export function todoFocus(): TodoFocus {
+	try {
+		const state = focus.get();
+		return {
+			emailThreadId: state.emailThreadId,
+			calendarEventId: state.calendarEventId,
+			mailboxUserId: state.mailboxUserId,
+			replyRequested: state.replyRequested,
+		};
+	} catch {
+		return {
+			emailThreadId: null,
+			calendarEventId: null,
+			mailboxUserId: null,
+			replyRequested: false,
+		};
+	}
 }
 
 export type InvestorFocus = {
