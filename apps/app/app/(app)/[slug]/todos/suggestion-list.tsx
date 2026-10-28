@@ -42,6 +42,18 @@ function SourceLine({ suggestion }: { suggestion: Suggestion }) {
 		);
 	}
 
+	if (source.kind === "note") {
+		return (
+			<span className="flex min-w-0 flex-wrap items-center gap-x-1">
+				Meeting notes:
+				<span className="truncate">{source.title}</span>
+				<span>
+					· <LocalDay date={source.heldAt} />
+				</span>
+			</span>
+		);
+	}
+
 	return (
 		<span className="flex min-w-0 flex-wrap items-center gap-x-1">
 			Meeting:
@@ -199,7 +211,7 @@ const EMPTY = {
 	PROPOSED: {
 		title: "Nothing to decide",
 		description:
-			"When a client emails you or a client meeting ends, the agent suggests what to do here.",
+			"The agent reads your client emails, your meetings and your Gemini meeting notes, and suggests what to do here.",
 	},
 	IGNORED: {
 		title: "Nothing ignored",

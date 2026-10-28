@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
 	PageShell,
+	PageShellActions,
 	PageShellContent,
 	PageShellDescription,
 	PageShellHeader,
@@ -13,6 +14,7 @@ import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { AddTodoDialog } from "./add-todo-dialog";
 import { loadTodosSearchParams } from "./todos-search-params";
 import { TodosView } from "./todos-view";
 
@@ -34,6 +36,9 @@ export default function TodosPage({
 						a task, and no email is sent, until you say so.
 					</PageShellDescription>
 				</PageShellHeading>
+				<PageShellActions>
+					<AddTodoDialog />
+				</PageShellActions>
 			</PageShellHeader>
 
 			<PageShellContent className="min-h-0">
