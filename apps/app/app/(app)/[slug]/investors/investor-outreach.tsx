@@ -1,13 +1,10 @@
 "use client";
 
 import Email from "@carbon/icons-react/es/Email";
-import { authClient } from "@crm/auth/client";
-import { SEND_SCOPES } from "@crm/auth/scopes";
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
 	Card,
-	CardAction,
 	CardDescription,
 	CardHeader,
 	CardPanel,
@@ -28,11 +25,11 @@ import { Textarea } from "@crm/ui/components/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
+import { AllowGmailSending } from "@/components/allow-gmail-sending";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
-import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
 type Outreach = RouterOutputs["investors"]["outreachQueue"];
 type OutreachEmail = Outreach["drafts"][number];
@@ -41,46 +38,6 @@ const DRAFTING_POLL_MS = 15_000;
 
 function stepLabel(step: number): string {
 	return step === 0 ? "First email" : `Follow-up ${step}`;
-}
-
-function AllowSending() {
-	const workspaceUrl = useWorkspaceUrl();
-	const [pending, setPending] = useState(false);
-
-	const allow = async () => {
-		setPending(true);
-		const origin = window.location.origin;
-		const back = `${origin}${workspaceUrl("/investors")}?section=outreach`;
-		const { error } = await authClient.linkSocial({
-			provider: "google",
-			scopes: [...SEND_SCOPES],
-			callbackURL: back,
-			errorCallbackURL: back,
-		});
-		if (error) {
-			setPending(false);
-			toast.error(error.message ?? "Could not reach Google.");
-		}
-	};
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Allow sending from your Gmail</CardTitle>
-				<CardDescription>
-					Approved emails go from your own Gmail, so replies land in your inbox
-					and the CRM sees them. Google asks you once to allow sending. The CRM
-					only sends an email when you press Send.
-				</CardDescription>
-				<CardAction>
-					<Button size="sm" disabled={pending} onClick={() => void allow()}>
-						{pending ? <Spinner /> : null}
-						Allow sending
-					</Button>
-				</CardAction>
-			</CardHeader>
-		</Card>
-	);
 }
 
 function DraftCard({
@@ -299,7 +256,9 @@ export function InvestorOutreach() {
 
 	return (
 		<div className="flex flex-col gap-4 pb-8">
-			{data.canSend ? null : <AllowSending />}
+			{data.canSend ? null : (
+				<AllowGmailSending description="Approved emails go from your own Gmail, so replies land in your inbox and the CRM sees them. Google asks you once to allow sending. The CRM only sends an email when you press Send." />
+			)}
 
 			<Card>
 				<CardHeader>

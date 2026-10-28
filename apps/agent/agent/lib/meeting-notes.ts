@@ -5,6 +5,7 @@ import {
 	meetingFollowUpItem,
 	meetingNotesMeta,
 } from "@crm/validation/meeting-notes";
+import { squash } from "./quotes";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_DUE_DAYS_AHEAD = 366;
@@ -13,17 +14,6 @@ export type ProposeOutcome = {
 	saved: number;
 	dropped: { title: string; reason: string }[];
 };
-
-function squash(text: string): string {
-	return text
-		.normalize("NFKC")
-		.replace(/[‘’‚‛′]/g, "'")
-		.replace(/[“”„‟″]/g, '"')
-		.replace(/[‐-―−]/g, "-")
-		.toLowerCase()
-		.replace(/\s+/g, " ")
-		.trim();
-}
 
 export async function readMeetingNotes(activityId: string) {
 	const activity = await db.activity.findUnique({

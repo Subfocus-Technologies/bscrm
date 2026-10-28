@@ -11,7 +11,7 @@ import {
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
 import { GmailClient } from "../google/gmail.client";
-import { composeRawEmail } from "../google/gmail-compose";
+import { composeRawEmail, signedBody } from "../google/gmail-compose";
 import { header } from "../google/gmail-mime";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import type {
@@ -50,11 +50,6 @@ function toEmail(row: EmailRow): OutreachEmail {
 		repliedAt: row.repliedAt?.toISOString() ?? null,
 		senderName: row.sender?.name ?? null,
 	};
-}
-
-function signed(body: string, name: string): string {
-	const trimmed = body.trimEnd();
-	return trimmed.endsWith(name) ? trimmed : `${trimmed}\n\n${name}`;
 }
 
 @Injectable()
@@ -160,7 +155,7 @@ export class InvestorOutreachService {
 		const references = earlier.flatMap((row) =>
 			row.rfcMessageId ? [row.rfcMessageId] : [],
 		);
-		const body = signed(input.body, sender.name);
+		const body = signedBody(input.body, sender.name);
 
 		const sent = await this.gmail.sendMessage(token.accessToken, {
 			raw: composeRawEmail({

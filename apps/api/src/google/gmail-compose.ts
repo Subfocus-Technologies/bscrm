@@ -44,3 +44,8 @@ export function composeRawEmail(email: OutgoingEmail): string {
 	const message = `${headers.join("\r\n")}\r\n\r\n${wrapBase64(email.body)}`;
 	return Buffer.from(message, "utf8").toString("base64url");
 }
+
+export function signedBody(body: string, name: string): string {
+	const trimmed = body.trimEnd();
+	return trimmed.endsWith(name) ? trimmed : `${trimmed}\n\n${name}`;
+}
