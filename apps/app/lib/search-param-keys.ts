@@ -31,6 +31,9 @@ export const SEARCH_PARAM = {
 	meetingNotes: {
 		view: "view",
 	},
+	todos: {
+		view: "todo",
+	},
 	investors: {
 		section: "section",
 		stage: "step",

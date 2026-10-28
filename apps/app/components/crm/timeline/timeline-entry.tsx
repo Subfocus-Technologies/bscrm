@@ -168,6 +168,7 @@ export function TimelineEntry({
 				{entry.emailThread ? (
 					<EmailThreadEntry
 						threadId={entry.emailThread.id}
+						subject={entry.subject ?? "Email"}
 						messageCount={entry.emailThread.messageCount}
 					/>
 				) : null}

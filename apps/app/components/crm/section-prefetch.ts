@@ -15,6 +15,7 @@ export type Section =
 	| "/deals"
 	| "/investors"
 	| "/meeting-notes"
+	| "/todos"
 	| "/settings";
 
 export function usePrefetchSection(): (section: string) => void {
@@ -63,6 +64,11 @@ export function usePrefetchSection(): (section: string) => void {
 							sort: "fit",
 							page: 1,
 						}),
+					);
+					return;
+				case "/todos":
+					void queryClient.prefetchQuery(
+						trpc.todos.suggestions.queryOptions({ view: "PROPOSED", page: 1 }),
 					);
 					return;
 				case "/meeting-notes":

@@ -32,6 +32,7 @@ export type CrmCache = {
 	businessRecords(kind: RecordKind, options?: Options): Promise<void>;
 	meetingNotes(options?: Options): Promise<void>;
 	investors(options?: Options): Promise<void>;
+	todos(options?: Options): Promise<void>;
 	removed(record: RemovedRecord): Promise<void>;
 	removedMany(records: RemovedRecords): Promise<void>;
 	conversationRemoved(id: string): Promise<void>;
@@ -73,6 +74,7 @@ export function useCrmCache(): CrmCache {
 		trpc.activities.timeline.pathKey(),
 		trpc.activities.timelineCounts.queryKey(),
 		trpc.activities.myTasks.queryKey(),
+		trpc.activities.myTaskPage.queryKey(),
 	];
 
 	const listKeys = () => [
@@ -201,6 +203,13 @@ export function useCrmCache(): CrmCache {
 					trpc.investors.outreachQueue.queryKey(),
 				],
 				[],
+				options,
+			),
+
+		todos: (options) =>
+			run(
+				[trpc.todos.suggestions.queryKey(), trpc.todos.reply.queryKey()],
+				[...activityKeys(), trpc.dashboard.summary.queryKey()],
 				options,
 			),
 
