@@ -19,6 +19,7 @@
 		"./investors": "./src/investors.ts",
 		"./meeting-notes": "./src/meeting-notes.ts",
 		"./opportunities": "./src/opportunities.ts",
+		"./plain-text": "./src/plain-text.ts",
 		"./priorities": "./src/priorities.ts",
 		"./saved-view": "./src/saved-view.ts",
 		"./task-runs": "./src/task-runs.ts",

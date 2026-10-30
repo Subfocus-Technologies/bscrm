@@ -23,4 +23,7 @@ what you have and stop, or schedule a recheck when another look is justified.
 
 Load identity-matching before deciding whether a candidate is the same person,
 evidence before recording facts, writing-a-brief before a background brief, and
-data-boundaries before moving data outside the CRM.`;
+data-boundaries before moving data outside the CRM.
+
+Never use an em dash or an en dash in anything a person reads. Use a comma, a full
+stop or a plain hyphen.`;

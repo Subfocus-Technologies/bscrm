@@ -1,3 +1,5 @@
+import { withoutEmDashes } from "@crm/validation/plain-text";
+
 export type OutgoingEmail = {
 	from: { name: string; email: string };
 	to: string;
@@ -33,7 +35,7 @@ export function composeRawEmail(email: OutgoingEmail): string {
 		`From: ${encodedWord(email.from.name)} <${email.from.email}>`,
 		`To: ${email.to}`,
 		email.cc?.length ? `Cc: ${email.cc.join(", ")}` : null,
-		`Subject: ${encodedWord(email.subject)}`,
+		`Subject: ${encodedWord(withoutEmDashes(email.subject))}`,
 		"MIME-Version: 1.0",
 		'Content-Type: text/plain; charset="UTF-8"',
 		"Content-Transfer-Encoding: base64",
@@ -43,11 +45,14 @@ export function composeRawEmail(email: OutgoingEmail): string {
 			: null,
 	].filter((line) => line !== null);
 
-	const message = `${headers.join("\r\n")}\r\n\r\n${wrapBase64(email.body)}`;
+	const message = `${headers.join("\r\n")}\r\n\r\n${wrapBase64(withoutEmDashes(email.body))}`;
 	return Buffer.from(message, "utf8").toString("base64url");
 }
 
 export function signedBody(body: string, name: string): string {
 	const trimmed = body.trimEnd();
-	return trimmed.endsWith(name) ? trimmed : `${trimmed}\n\n${name}`;
+	const firstName = name.split(" ")[0] ?? name;
+	const lastLine = trimmed.split("\n").at(-1)?.trim() ?? "";
+	const signed = trimmed.endsWith(name) || lastLine.endsWith(firstName);
+	return signed ? trimmed : `${trimmed}\n\n${name}`;
 }

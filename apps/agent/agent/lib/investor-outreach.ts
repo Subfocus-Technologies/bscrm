@@ -5,6 +5,7 @@ import {
 	parseInvestorFit,
 	parseInvestorProfile,
 } from "@crm/validation/investors";
+import { withoutEmDashes } from "@crm/validation/plain-text";
 import { fundraiseMarkdown } from "./investors";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -102,11 +103,16 @@ export async function draftInvestorEmail(input: {
 	const email = existing
 		? await db.investorEmail.update({
 				where: { id: existing.id },
-				data: { step, subject, body: input.body },
+				data: { step, subject, body: withoutEmDashes(input.body) },
 				select: { id: true },
 			})
 		: await db.investorEmail.create({
-				data: { investorId: investor.id, step, subject, body: input.body },
+				data: {
+					investorId: investor.id,
+					step,
+					subject,
+					body: withoutEmDashes(input.body),
+				},
 				select: { id: true },
 			});
 
