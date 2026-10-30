@@ -38,11 +38,13 @@ function TextField({
 	value,
 	onChange,
 	rows,
+	placeholder,
 }: {
 	label: string;
 	value: string;
 	onChange: (next: string) => void;
 	rows?: number;
+	placeholder?: string;
 }) {
 	const id = useId();
 
@@ -60,6 +62,7 @@ function TextField({
 				<Input
 					id={id}
 					value={value}
+					placeholder={placeholder}
 					onChange={(event) => onChange(event.target.value)}
 				/>
 			)}
@@ -76,17 +79,21 @@ function splitList(value: string): string[] {
 
 function Editor({
 	payload,
+	sendingFrom,
 	onChange,
 }: {
 	payload: Payload;
+	sendingFrom: string;
 	onChange: (next: Payload) => void;
 }) {
 	if (payload.kind === "EMAIL") {
 		return (
 			<FieldGroup>
+				<p className="text-muted-foreground text-xs">From {sendingFrom}</p>
 				<TextField
 					label="To"
 					value={payload.to}
+					placeholder="Who this email goes to"
 					onChange={(to) => onChange({ ...payload, to })}
 				/>
 				<TextField
@@ -183,9 +190,12 @@ export function TaskRunActionCard({
 	const [payload, setPayload] = useState<Payload>(action.payload);
 	const copy = COPY[action.payload.kind];
 	const open = action.status === "PROPOSED" || action.status === "FAILED";
+	const missingRecipient = payload.kind === "EMAIL" && !payload.to.trim();
 	const blocked =
+		missingRecipient ||
 		(payload.kind === "EMAIL" && !run.canSendEmail) ||
 		(payload.kind === "EVENT" && !run.canAddToCalendar);
+	const edited = JSON.stringify(payload) !== JSON.stringify(action.payload);
 
 	const approve = useMutation(
 		trpc.taskRuns.approve.mutationOptions({
@@ -206,7 +216,16 @@ export function TaskRunActionCard({
 			onError: (error) => toast.error(error.message),
 		}),
 	);
-	const busy = approve.isPending || skip.isPending;
+	const save = useMutation(
+		trpc.taskRuns.saveStep.mutationOptions({
+			onSuccess: async () => {
+				await cache.taskRuns();
+				toast.success("Saved.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const busy = approve.isPending || skip.isPending || save.isPending;
 	const link = action.result?.startsWith("http") ? action.result : null;
 
 	return (
@@ -221,7 +240,13 @@ export function TaskRunActionCard({
 				) : null}
 			</div>
 
-			{open ? <Editor payload={payload} onChange={setPayload} /> : null}
+			{open ? (
+				<Editor
+					payload={payload}
+					sendingFrom={run.sendingFrom}
+					onChange={setPayload}
+				/>
+			) : null}
 
 			{action.result && !link ? (
 				<p className="text-muted-foreground text-xs">{action.result}</p>
@@ -245,6 +270,17 @@ export function TaskRunActionCard({
 						{approve.isPending ? <Spinner /> : null}
 						{copy.approve}
 					</Button>
+					{edited ? (
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={busy}
+							onClick={() => save.mutate({ actionId: action.id, payload })}
+						>
+							{save.isPending ? <Spinner /> : null}
+							Save changes
+						</Button>
+					) : null}
 					<Button
 						size="sm"
 						variant="ghost"
@@ -254,6 +290,11 @@ export function TaskRunActionCard({
 						Skip
 					</Button>
 				</div>
+			) : null}
+			{open && missingRecipient ? (
+				<p className="text-muted-foreground text-xs">
+					Add who it goes to, then you can send it.
+				</p>
 			) : null}
 		</li>
 	);

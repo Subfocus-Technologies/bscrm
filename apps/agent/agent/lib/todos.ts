@@ -1,6 +1,7 @@
 import { db, type Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { nextWorkspaceDayStart, workspaceDayStart } from "@crm/db/day";
+import { withoutEmDashes } from "@crm/validation/plain-text";
 import {
 	emailActionsPayload,
 	meetingActionsPayload,
@@ -12,6 +13,7 @@ import {
 	todoSuggestionItem,
 	wordCount,
 } from "@crm/validation/todos";
+import { lessonsMarkdown } from "./lessons";
 import { squash } from "./quotes";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -226,10 +228,11 @@ export async function emailActionsMarkdown(
 	if (!parsed.success) return "";
 
 	const { emailThreadId, userId, replyRequested, instructions } = parsed.data;
-	const [thread, owner, decided] = await Promise.all([
+	const [thread, owner, decided, lessons] = await Promise.all([
 		loadThread(emailThreadId),
 		ownerName(userId),
 		decidedLines({ kind: "email", emailThreadId, userId }),
+		lessonsMarkdown(userId),
 	]);
 	if (!thread) return "";
 
@@ -260,6 +263,7 @@ export async function emailActionsMarkdown(
 		decided.length > 0
 			? `${owner} already decided these. Do not suggest them again:\n${decided.join("\n")}`
 			: "",
+		lessons,
 		`## The conversation — thread \`${emailThreadId}\``,
 		`Subject: ${thread.subject ?? "(no subject)"}`,
 		conversation.join("\n\n"),
@@ -458,7 +462,7 @@ export async function proposeTodos(
 		const draft = {
 			toEmail: context.replyTo,
 			subject: replySubject(context.subject),
-			body: replyText,
+			body: withoutEmDashes(replyText),
 		};
 		const existing = await tx.emailReply.findFirst({
 			where: {

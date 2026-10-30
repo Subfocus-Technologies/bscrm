@@ -17,6 +17,8 @@ import {
 	taskRunDecisionOutput,
 	taskRunIdInput,
 	taskRunOutput,
+	taskRunSaveStepOutput,
+	taskRunSaveWorkInput,
 	taskRunStartInput,
 	taskRunStartOutput,
 	taskRunStatusesInput,
@@ -100,5 +102,47 @@ export class TaskRunsRouter {
 		@Input("actionId") actionId: string,
 	) {
 		return this.runs.skip(actionId, ctx.user.id);
+	}
+
+	@Mutation({
+		input: taskRunApproveInput,
+		output: taskRunSaveStepOutput,
+		meta: restMeta("POST", "/task-runs/actions/{actionId}/save", ["To-dos"]),
+	})
+	async saveStep(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof taskRunApproveInput>,
+	) {
+		return this.runs.saveStep(input, ctx.user.id);
+	}
+
+	@Mutation({
+		input: taskRunSaveWorkInput,
+		output: taskRunStartOutput,
+		meta: restMeta("POST", "/task-runs/{id}/work", ["To-dos"]),
+	})
+	async saveWork(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof taskRunSaveWorkInput>,
+	) {
+		return this.runs.saveWork(input, ctx.user.id);
+	}
+
+	@Mutation({
+		input: taskRunIdInput,
+		output: taskRunSaveStepOutput,
+		meta: restMeta("POST", "/task-runs/{id}/email", ["To-dos"]),
+	})
+	async addEmail(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.runs.addEmail(id, ctx.user.id);
+	}
+
+	@Mutation({
+		input: taskRunIdInput,
+		output: taskRunStartOutput,
+		meta: restMeta("POST", "/task-runs/{id}/finish", ["To-dos"]),
+	})
+	async finish(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.runs.finish(id, ctx.user.id);
 	}
 }

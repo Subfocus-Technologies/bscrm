@@ -104,7 +104,7 @@ describe("a task run", () => {
 		});
 	});
 
-	it("drops a bad address and a code change it has no access for", async () => {
+	it("blanks a guessed address and drops a code change it has no access for", async () => {
 		const outcome = await submitTaskWork(taskRunId, {
 			summary: "Done.",
 			deliverable: null,
@@ -121,10 +121,40 @@ describe("a task run", () => {
 			],
 		});
 
-		expect(outcome.ok && outcome.saved).toBe(0);
-		expect(outcome.ok && outcome.dropped[1]?.reason).toBe(
+		expect(outcome.ok && outcome.saved).toBe(1);
+		expect(outcome.ok && outcome.dropped[0]?.reason).toBe(
 			"This session has no repository access.",
 		);
+		const step = await db.taskRunAction.findFirstOrThrow({
+			where: { runId: taskRunId },
+			select: { payload: true },
+		});
+		expect(step.payload).toMatchObject({ to: "" });
+	});
+
+	it("keeps what it proposed and removes em dashes from what it wrote", async () => {
+		await submitTaskWork(taskRunId, {
+			summary: "Done — mostly.",
+			deliverable: "The work — finished.",
+			actions: [{ ...email, body: "Quick one — thanks" }],
+		});
+
+		const run = await db.taskRun.findUniqueOrThrow({
+			where: { id: taskRunId },
+			select: {
+				summary: true,
+				deliverable: true,
+				proposedDeliverable: true,
+				actions: { select: { payload: true, proposedPayload: true } },
+			},
+		});
+		expect(run.summary).toBe("Done, mostly.");
+		expect(run.deliverable).toBe("The work, finished.");
+		expect(run.proposedDeliverable).toBe("The work, finished.");
+		expect(run.actions[0]?.payload).toMatchObject({
+			body: "Quick one, thanks",
+		});
+		expect(run.actions[0]?.proposedPayload).toEqual(run.actions[0]?.payload);
 	});
 
 	it("takes the hand-over once", async () => {

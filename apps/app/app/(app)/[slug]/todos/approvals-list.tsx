@@ -32,13 +32,15 @@ function ApprovalRow({ approval }: { approval: Approval }) {
 					</p>
 				) : null}
 				<span className="text-muted-foreground text-xs">
-					Finished <LocalRelativeTime date={approval.createdAt} />
+					Ready <LocalRelativeTime date={approval.createdAt} />
 				</span>
 			</div>
 			<Button size="sm" onClick={() => setOpen(true)}>
-				{approval.waiting === 1
-					? "Review 1 step"
-					: `Review ${approval.waiting} steps`}
+				{approval.waiting === 0
+					? "Review the work"
+					: approval.waiting === 1
+						? "Review 1 step"
+						: `Review ${approval.waiting} steps`}
 			</Button>
 			{open ? (
 				<TaskRunSheet

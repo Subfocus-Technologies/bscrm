@@ -44,6 +44,7 @@ export const taskRunOutput = z.object({
 	actions: z.array(taskRunActionOutput),
 	canSendEmail: z.boolean(),
 	canAddToCalendar: z.boolean(),
+	sendingFrom: z.string(),
 });
 
 export type TaskRunOutput = z.infer<typeof taskRunOutput>;
@@ -98,3 +99,12 @@ export const taskRunDecisionOutput = z.object({
 	status: z.enum(["PROPOSED", "RUNNING", "DONE", "SKIPPED", "FAILED"]),
 	result: z.string().nullable(),
 });
+
+export const taskRunSaveStepOutput = z.object({ id: z.string() });
+
+export const taskRunSaveWorkInput = z.object({
+	id: z.string().min(1),
+	deliverable: z.string().trim().min(1).max(TASK_RUNS.deliverableMaxLength),
+});
+
+export type TaskRunSaveWorkInput = z.infer<typeof taskRunSaveWorkInput>;

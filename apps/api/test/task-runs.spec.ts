@@ -16,8 +16,10 @@ const otherId = `task-runs-other-${suffix}`;
 const sentRaw: string[] = [];
 const events: { summary: string; attendees?: readonly string[] }[] = [];
 let sendWorks = true;
+let rightAccount = true;
 
 const gmail = {
+	sendsFrom: async () => rightAccount,
 	sendMessage: async (_token: string, input: { raw: string }) => {
 		if (!sendWorks) {
 			return { outcome: "failed" as const, reason: "boom", retryable: false };
@@ -96,6 +98,16 @@ async function clean() {
 	await db.agentTask.deleteMany({
 		where: { kind: "task-run", reason: "A person pressed Do it for me" },
 	});
+	await db.agentTask.deleteMany({
+		where: { kind: "lesson-review", subject: { contains: "task-run:" } },
+	});
+}
+
+function decoded(raw: string): string {
+	const [headers = "", body = ""] = Buffer.from(raw, "base64url")
+		.toString("utf8")
+		.split("\r\n\r\n");
+	return `${headers}\n${Buffer.from(body, "base64").toString("utf8")}`;
 }
 
 beforeEach(async () => {
@@ -103,6 +115,7 @@ beforeEach(async () => {
 	sentRaw.length = 0;
 	events.length = 0;
 	sendWorks = true;
+	rightAccount = true;
 	for (const id of [userId, otherId]) {
 		await db.user.upsert({
 			where: { id },
@@ -254,6 +267,111 @@ describe("approving a step", () => {
 		const run = await runs.get(runId, userId);
 		expect(run.status).toBe("FINISHED");
 		expect(sentRaw).toHaveLength(0);
+	});
+});
+
+describe("sending an email", () => {
+	it("refuses until a person adds who it goes to, and keeps the step open", async () => {
+		const actionId = await addAction({ ...emailPayload, to: "" });
+
+		await expect(
+			runs.approve({ actionId, payload: { ...emailPayload, to: "" } }, userId),
+		).rejects.toThrow("Add who the email goes to first.");
+
+		const step = await db.taskRunAction.findUniqueOrThrow({
+			where: { id: actionId },
+			select: { status: true },
+		});
+		expect(step.status).toBe("PROPOSED");
+		expect(sentRaw).toHaveLength(0);
+	});
+
+	it("sends from the person's own address and never with an em dash", async () => {
+		const actionId = await addAction(emailPayload);
+
+		await runs.approve(
+			{
+				actionId,
+				payload: {
+					...emailPayload,
+					subject: "VAT — quick one",
+					body: "Could you check — thanks",
+				},
+			},
+			userId,
+		);
+
+		const sent = decoded(sentRaw[0] ?? "");
+		expect(sent).toContain(`<${userId}@example.test>`);
+		expect(sent).toContain("Subject: VAT, quick one");
+		expect(sent).toContain("Could you check, thanks");
+		expect(sent).not.toContain("—");
+	});
+
+	it("does not send from a different Google account", async () => {
+		rightAccount = false;
+		const actionId = await addAction(emailPayload);
+
+		const decision = await runs.approve(
+			{ actionId, payload: emailPayload },
+			userId,
+		);
+
+		expect(decision.status).toBe("FAILED");
+		expect(decision.result).toContain("Emails only go from");
+		expect(sentRaw).toHaveLength(0);
+	});
+
+	it("keeps saved edits without sending", async () => {
+		const actionId = await addAction(emailPayload);
+
+		await runs.saveStep(
+			{ actionId, payload: { ...emailPayload, body: "My words" } },
+			userId,
+		);
+
+		const run = await runs.get(runId, userId);
+		expect(run.actions[0]?.payload).toMatchObject({ body: "My words" });
+		expect(run.actions[0]?.status).toBe("PROPOSED");
+		expect(sentRaw).toHaveLength(0);
+	});
+
+	it("turns the finished work into an email step and reopens the run", async () => {
+		await db.taskRun.update({
+			where: { id: runId },
+			data: { status: "FINISHED", deliverable: "## Note\n\n**Hello** Dan" },
+		});
+
+		await runs.addEmail(runId, userId);
+
+		const run = await runs.get(runId, userId);
+		expect(run.status).toBe("AWAITING_APPROVAL");
+		expect(run.actions[0]?.payload).toMatchObject({
+			kind: "EMAIL",
+			to: "",
+			subject: "Check VAT",
+			body: "Note\n\nHello Dan",
+		});
+	});
+});
+
+describe("learning from a run", () => {
+	it("queues one review when the run finishes", async () => {
+		const actionId = await addAction(emailPayload);
+
+		await runs.skip(actionId, userId);
+
+		const reviews = await db.agentTask.count({
+			where: { kind: "lesson-review", subject: `task-run:${runId}` },
+		});
+		expect(reviews).toBe(1);
+	});
+
+	it("finishes a run with no steps when a person says so", async () => {
+		await runs.finish(runId, userId);
+
+		const run = await runs.get(runId, userId);
+		expect(run.status).toBe("FINISHED");
 	});
 });
 

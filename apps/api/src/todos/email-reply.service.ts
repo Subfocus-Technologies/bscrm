@@ -1,4 +1,5 @@
 import { type Db, EmailReplyStatus, TodoSuggestionStatus } from "@crm/db";
+import { withoutEmDashes } from "@crm/validation/plain-text";
 import { replySubject } from "@crm/validation/todos";
 import {
 	BadRequestException,
@@ -38,7 +39,7 @@ export class EmailReplyService {
 		actingUserId: string,
 	): Promise<ThreadReplyOutput> {
 		const thread = await this.requireThread(emailThreadId);
-		const [draft, drafting, canSend] = await Promise.all([
+		const [draft, drafting, canSend, sender] = await Promise.all([
 			this.db.emailReply.findFirst({
 				where: {
 					emailThreadId,
@@ -57,11 +58,16 @@ export class EmailReplyService {
 				},
 			}),
 			this.tokens.canSendGmail(actingUserId),
+			this.db.user.findUniqueOrThrow({
+				where: { id: actingUserId },
+				select: { email: true },
+			}),
 		]);
 
 		return {
 			emailThreadId,
 			toEmail: thread.lastInbound?.fromEmail ?? null,
+			fromEmail: sender.email,
 			subject: draft?.subject ?? replySubject(thread.subject),
 			draft: draft
 				? {
@@ -144,7 +150,9 @@ export class EmailReplyService {
 		},
 		actingUserId: string,
 	) {
-		const { to, cc, subject, thread } = input;
+		const { to, cc, thread } = input;
+		const subject = withoutEmDashes(input.subject);
+		const written = withoutEmDashes(input.body);
 		const token = await this.tokens.gmailSendToken(actingUserId);
 		if (token.outcome !== "ok") {
 			throw new BadRequestException("Allow sending from your Gmail first.");
@@ -154,10 +162,16 @@ export class EmailReplyService {
 			where: { id: actingUserId },
 			select: { name: true, email: true },
 		});
+		if (!(await this.gmail.sendsFrom(token.accessToken, sender.email))) {
+			throw new BadRequestException(
+				`Emails only go from ${sender.email}. Connect that Google account first.`,
+			);
+		}
+
 		const references = (thread?.messages ?? [])
 			.map((message) => message.rfcMessageId)
 			.slice(-MAX_REFERENCES);
-		const body = signedBody(input.body, sender.name);
+		const body = signedBody(written, sender.name);
 
 		const sent = await this.gmail.sendMessage(token.accessToken, {
 			raw: composeRawEmail({
@@ -200,6 +214,7 @@ export class EmailReplyService {
 					toEmail: to,
 					subject,
 					body,
+					written,
 					gmailMessageId: sent.data.id,
 					rfcMessageId,
 					sentAt,
@@ -226,26 +241,28 @@ export class EmailReplyService {
 			toEmail: string;
 			subject: string;
 			body: string;
+			written: string;
 			gmailMessageId: string;
 			rfcMessageId: string | null;
 			sentAt: Date;
 		},
 	): Promise<string> {
-		const record = { ...fields, status: EmailReplyStatus.SENT };
+		const { written, ...stored } = fields;
+		const record = { ...stored, status: EmailReplyStatus.SENT };
 
-		return this.db.$transaction(async (tx) => {
+		const saved = await this.db.$transaction(async (tx) => {
 			const draft = await tx.emailReply.findFirst({
 				where: {
 					emailThreadId,
 					userId: actingUserId,
 					status: EmailReplyStatus.DRAFT,
 				},
-				select: { id: true },
+				select: { id: true, body: true },
 			});
-			const saved = draft
+			const reply = draft
 				? await tx.emailReply.update({
 						where: { id: draft.id },
-						data: record,
+						data: { ...record, draftBody: draft.body },
 						select: { id: true },
 					})
 				: await tx.emailReply.create({
@@ -263,8 +280,16 @@ export class EmailReplyService {
 				data: { status: TodoSuggestionStatus.DONE, decidedAt: fields.sentAt },
 			});
 
-			return saved.id;
+			return {
+				id: reply.id,
+				edited: draft ? draft.body.trim() !== written.trim() : false,
+			};
 		});
+
+		if (saved.edited) {
+			await this.agent.lessonReviewRequested({ kind: "reply", id: saved.id });
+		}
+		return saved.id;
 	}
 
 	async discard(

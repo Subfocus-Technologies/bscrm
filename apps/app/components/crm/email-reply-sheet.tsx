@@ -129,7 +129,9 @@ function ReplyEditor({
 
 	return (
 		<div className="flex flex-col gap-3">
-			<p className="text-muted-foreground text-xs">To {reply.toEmail}</p>
+			<p className="text-muted-foreground text-xs">
+				From {reply.fromEmail} to {reply.toEmail}
+			</p>
 			<div className="flex flex-col gap-1.5">
 				<Label htmlFor={subjectId}>Subject</Label>
 				<Input

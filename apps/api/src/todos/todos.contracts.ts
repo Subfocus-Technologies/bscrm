@@ -82,6 +82,7 @@ export const threadReplyInput = z.object({
 export const threadReplyOutput = z.object({
 	emailThreadId: z.string(),
 	toEmail: z.string().nullable(),
+	fromEmail: z.string(),
 	subject: z.string(),
 	draft: z
 		.object({

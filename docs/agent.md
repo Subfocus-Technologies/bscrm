@@ -380,6 +380,36 @@ out what a person approves.
 - **A run that stops reads as failed.** When the `AgentTask` finishes and the run
   never handed over, the API reports the task's outcome, so a person can run it
   again.
+- **An email is a step, not a document.** The agent puts an email in an `EMAIL`
+  step, with `to` empty when the CRM does not hold the address. A person fills
+  in the address, edits the copy and sends. `Turn into an email` makes the same
+  step from finished work.
+- **Email only leaves from the person's own address.** `GmailClient.sendsFrom`
+  stops a send when the connected Google account differs from the signed-in
+  address. Everyone signs in through `ALLOWED_SIGN_IN`, so that is the Subfocus
+  address.
+- **No em dashes.** `withoutEmDashes` runs on the step schemas, on saved drafts
+  and in `composeRawEmail`, so an em dash cannot reach a client whoever wrote it.
+
+## Lessons
+
+`lesson-review` is how the agent improves. `lib/lessons.ts` holds every rule, and
+`save_lessons` is thin.
+
+- **What teaches it.** A run saves what the agent proposed in
+  `proposedPayload` and `proposedDeliverable`, and a sent reply saves its draft
+  in `draftBody`. A finished run, an edited reply and a do-it-again each queue
+  one `lesson-review`.
+- **No change, no spend.** `preflightLessonReview` ends the task without a model
+  call when a person changed nothing.
+- **Lessons are data a person controls.** The session writes `AgentLesson` rows
+  only. `PERSONAL` belongs to one user and `TEAM` to everyone. The To-do page
+  shows them, and a person can add or remove any they can see. The review reads
+  removed lessons, so it does not add them again, and it can retire only what it
+  learned itself.
+- **Where they go.** `lessonsMarkdown` adds the newest
+  `LESSONS.maxInPrompt` to task runs and reply drafts. A lesson shapes the work.
+  It never permits a send and never overrides a rule.
 
 ## Events, awards and speaking
 

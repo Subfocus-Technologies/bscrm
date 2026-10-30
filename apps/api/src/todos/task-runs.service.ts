@@ -2,6 +2,11 @@ import { ActivityType, type Db, type Prisma } from "@crm/db";
 import { RETIRED_OUTCOME } from "@crm/db/agent-tasks";
 import { WORKSPACE_TIME_ZONE } from "@crm/db/settings";
 import {
+	markdownToPlainText,
+	withoutEmDashes,
+} from "@crm/validation/plain-text";
+import {
+	emailAction,
 	parseTaskRunAction,
 	TASK_RUNS,
 	type TaskRunActionPayload,
@@ -22,6 +27,7 @@ import { EmailReplyService } from "./email-reply.service";
 import type {
 	TaskRunApproveInput,
 	TaskRunOutput,
+	TaskRunSaveWorkInput,
 	TaskRunStartInput,
 	TaskRunsListInput,
 } from "./task-runs.contracts";
@@ -80,6 +86,14 @@ export class TaskRunsService {
 		});
 		if (open && !(await this.hasStopped(open.id))) return { id: open.id };
 
+		const previous = input.instructions
+			? await this.db.taskRun.findFirst({
+					where: { taskId: task.id, userId: actingUserId },
+					orderBy: { createdAt: "desc" },
+					select: { id: true },
+				})
+			: null;
+
 		const run = await this.db.taskRun.create({
 			data: {
 				taskId: task.id,
@@ -95,6 +109,13 @@ export class TaskRunsService {
 			companyId: task.companyId,
 			dealId: task.dealId,
 		});
+
+		if (previous) {
+			await this.agent.lessonReviewRequested({
+				kind: "task-run",
+				id: previous.id,
+			});
+		}
 
 		this.logger.log({
 			message: "Task run started",
@@ -112,11 +133,17 @@ export class TaskRunsService {
 		});
 		if (!run) throw new NotFoundException(`No run with id ${id}.`);
 
-		const [failure, canSendEmail, canAddToCalendar] = await Promise.all([
-			this.failureOf(run),
-			this.tokens.canSendGmail(actingUserId),
-			this.tokens.canWriteCalendar(actingUserId),
-		]);
+		const [failure, canSendEmail, canAddToCalendar, sender] = await Promise.all(
+			[
+				this.failureOf(run),
+				this.tokens.canSendGmail(actingUserId),
+				this.tokens.canWriteCalendar(actingUserId),
+				this.db.user.findUniqueOrThrow({
+					where: { id: actingUserId },
+					select: { email: true },
+				}),
+			],
+		);
 
 		return {
 			id: run.id,
@@ -138,6 +165,7 @@ export class TaskRunsService {
 			})),
 			canSendEmail,
 			canAddToCalendar,
+			sendingFrom: sender.email,
 		};
 	}
 
@@ -210,6 +238,10 @@ export class TaskRunsService {
 	}
 
 	async approve(input: TaskRunApproveInput, actingUserId: string) {
+		if (input.payload.kind === "EMAIL" && !input.payload.to) {
+			throw new BadRequestException("Add who the email goes to first.");
+		}
+
 		const action = await this.claim(
 			input.actionId,
 			actingUserId,
@@ -266,6 +298,106 @@ export class TaskRunsService {
 		});
 		await this.finishIfSettled(action.runId);
 		return { id: action.id, status: action.status, result: action.result };
+	}
+
+	async saveStep(input: TaskRunApproveInput, actingUserId: string) {
+		const { count } = await this.db.taskRunAction.updateMany({
+			where: {
+				id: input.actionId,
+				kind: input.payload.kind,
+				status: { in: ["PROPOSED", "FAILED"] },
+				run: { userId: actingUserId },
+			},
+			data: { payload: input.payload },
+		});
+		if (count === 0) {
+			throw new ConflictException("This step is already decided.");
+		}
+		return { id: input.actionId };
+	}
+
+	async saveWork(input: TaskRunSaveWorkInput, actingUserId: string) {
+		const { count } = await this.db.taskRun.updateMany({
+			where: {
+				id: input.id,
+				userId: actingUserId,
+				status: { in: ["AWAITING_APPROVAL", "FINISHED"] },
+			},
+			data: { deliverable: withoutEmDashes(input.deliverable) },
+		});
+		if (count === 0) {
+			throw new NotFoundException(`No finished work with id ${input.id}.`);
+		}
+		return { id: input.id };
+	}
+
+	async addEmail(id: string, actingUserId: string) {
+		const run = await this.db.taskRun.findFirst({
+			where: { id, userId: actingUserId },
+			select: {
+				deliverable: true,
+				status: true,
+				task: { select: { subject: true } },
+				_count: { select: { actions: true } },
+			},
+		});
+		if (!run) throw new NotFoundException(`No run with id ${id}.`);
+		if (run.status === "QUEUED" || run.status === "WORKING") {
+			throw new ConflictException("The agent is still working on this.");
+		}
+
+		const body = markdownToPlainText(run.deliverable ?? "");
+		if (!body) throw new BadRequestException("There is no work to email.");
+		if (body.length > TASK_RUNS.email.bodyMaxLength) {
+			throw new BadRequestException(
+				`This is too long for an email. Keep it to ${TASK_RUNS.email.bodyMaxLength} characters.`,
+			);
+		}
+
+		const payload = emailAction.parse({
+			kind: "EMAIL",
+			to: "",
+			subject: (run.task.subject ?? "Update").slice(
+				0,
+				TASK_RUNS.email.subjectMaxLength,
+			),
+			body,
+		});
+		const action = await this.db.$transaction(async (tx) => {
+			await tx.taskRun.update({
+				where: { id },
+				data: { status: "AWAITING_APPROVAL", finishedAt: null },
+			});
+			return tx.taskRunAction.create({
+				data: {
+					runId: id,
+					position: run._count.actions,
+					kind: "EMAIL",
+					why: "You turned the work into an email.",
+					payload,
+				},
+				select: { id: true },
+			});
+		});
+
+		this.logger.log({
+			message: "Task run email added",
+			taskRunId: id,
+			actionId: action.id,
+			userId: actingUserId,
+		});
+		return action;
+	}
+
+	async finish(id: string, actingUserId: string) {
+		const run = await this.db.taskRun.findFirst({
+			where: { id, userId: actingUserId },
+			select: { id: true },
+		});
+		if (!run) throw new NotFoundException(`No run with id ${id}.`);
+
+		await this.finishIfSettled(id);
+		return run;
 	}
 
 	private async claim(
@@ -403,10 +535,13 @@ export class TaskRunsService {
 		});
 		if (waiting > 0) return;
 
-		await this.db.taskRun.updateMany({
+		const { count } = await this.db.taskRun.updateMany({
 			where: { id: runId, status: "AWAITING_APPROVAL" },
 			data: { status: "FINISHED", finishedAt: new Date() },
 		});
+		if (count > 0) {
+			await this.agent.lessonReviewRequested({ kind: "task-run", id: runId });
+		}
 	}
 
 	private async failureOf(run: RunRow): Promise<string | null> {

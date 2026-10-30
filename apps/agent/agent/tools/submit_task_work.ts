@@ -21,7 +21,7 @@ export default defineTool({
 			.max(TASK_RUNS.deliverableMaxLength)
 			.nullable()
 			.describe(
-				"The finished work in Markdown, or null when an email is all it needs.",
+				"The finished work in Markdown. Null when the work is an email: the EMAIL step holds it.",
 			),
 		actions: z
 			.array(
@@ -29,7 +29,11 @@ export default defineTool({
 					z.object({
 						kind: z.literal("EMAIL"),
 						why,
-						to: z.string(),
+						to: z
+							.string()
+							.describe(
+								"The address, or an empty string when the CRM does not hold it.",
+							),
 						cc: z.array(z.string()).max(TASK_RUNS.email.maxCopied),
 						subject: z.string().max(TASK_RUNS.email.subjectMaxLength),
 						body: z.string().max(TASK_RUNS.email.bodyMaxLength),

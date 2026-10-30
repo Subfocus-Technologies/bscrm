@@ -1,4 +1,5 @@
 import { db, type Prisma } from "@crm/db";
+import { withoutEmDashes } from "@crm/validation/plain-text";
 import {
 	parseTaskRunAction,
 	pullRequestAction,
@@ -16,6 +17,7 @@ import {
 	repoIsAllowed,
 	reposEnabled,
 } from "./github";
+import { lessonsMarkdown, queueLessonReview } from "./lessons";
 
 export type TaskRunPreflight =
 	| { kind: "research" }
@@ -28,6 +30,15 @@ export type SubmitOutcome =
 			dropped: { index: number; reason: string }[];
 	  }
 	| { ok: false; reason: string };
+
+const knownAddress = z.string().trim().email().catch("");
+
+const proposedStep = z
+	.union([
+		z.looseObject({ kind: z.literal("EMAIL"), to: knownAddress }),
+		z.looseObject({}),
+	])
+	.pipe(taskRunAction);
 
 const whyOf = z.object({
 	why: z.string().trim().max(TASK_RUNS.whyMaxLength).catch(""),
@@ -44,6 +55,7 @@ async function loadRun(id: string) {
 		select: {
 			id: true,
 			status: true,
+			userId: true,
 			instructions: true,
 			user: { select: { name: true, email: true } },
 			task: {
@@ -64,7 +76,10 @@ export async function taskRunMarkdown(taskRunId: string): Promise<string> {
 	if (!run) return "";
 
 	const owner = run.user.name;
-	const businesses = await listFilingBusinesses();
+	const [businesses, lessons] = await Promise.all([
+		listFilingBusinesses(),
+		lessonsMarkdown(run.userId),
+	]);
 	const repos = reposEnabled()
 		? `You can read these code repositories with \`read_repo\`: ${allowedRepos().join(", ")}. When the to-do is a change to our product, read the code first, then propose a PULL_REQUEST action with the whole new content of each file. It opens as a draft for an engineer to review. Keep client names and email addresses out of code.`
 		: "You have no code repository access in this session, so propose no PULL_REQUEST action. When a to-do needs a code change, say so in the summary and write the specification as the deliverable.";
@@ -77,13 +92,13 @@ export async function taskRunMarkdown(taskRunId: string): Promise<string> {
 			"## How to work",
 			"1. Read everything we hold first: `read_crm_history`, `read_company_history` or `read_deal_history`, and `search_crm` for anyone the to-do names. The emails and meeting notes hold what was actually agreed.",
 			"2. Look outside the CRM only for what it does not hold, and only with derived questions: never put client text in a web search.",
-			"3. Write the finished piece as the `deliverable`: the actual agreement, pricing, analysis, shortlist or copy, ready to use. Mark anything you could not establish as [TO CONFIRM: what is missing]. Legal and financial drafts are for a person to review, and the summary says so.",
+			"3. Write the finished piece as the `deliverable`: the actual agreement, pricing, analysis, shortlist or copy, ready to use. Mark anything you could not establish as [TO CONFIRM: what is missing]. Legal and financial drafts are for a person to review, and the summary says so. When the work is an email, the EMAIL step is the work: put it there, set `deliverable` to null, and never paste the email into the deliverable.",
 			"4. Propose the next steps as `actions`, in the order they should happen. Each one waits for approval, so propose what you would do next, not what you have done.",
 			"5. Call `submit_task_work` once. When something stops you, say exactly what is missing in the summary and still hand over what you have.",
 		].join("\n"),
 		[
 			"## Rules for actions",
-			`- EMAIL: written as ${owner}, British English, plain text, no sign-off name (it is added on sending). Use an address only when the CRM or the to-do gives it. Never guess one: propose a TODO to find it. Set \`emailThreadId\` to the thread id from the history when this continues a conversation.`,
+			`- EMAIL: written as ${owner}, British English, plain text, ready to send, with a subject. End with a sign-off word such as "Thanks" and no name: the name is added on sending. It goes from ${owner}'s Subfocus address. Use an address only when the CRM or the to-do gives it. Never guess one: leave \`to\` as an empty string and ${owner} adds it before sending. Do not propose a TODO to find it. Set \`emailThreadId\` to the thread id from the history when this continues a conversation.`,
 			"- EVENT: a calendar entry. Leave `startsAt` null to use the first free slot. Attendees get an invitation once it is approved.",
 			"- TODO: a follow-up for later, such as chasing a reply.",
 			"- Never say something has been sent, booked or done. Never promise a price, a date or a term the sources do not support.",
@@ -91,6 +106,7 @@ export async function taskRunMarkdown(taskRunId: string): Promise<string> {
 		].join("\n"),
 		repos,
 		businessesMarkdown(businesses),
+		lessons,
 	]
 		.filter(Boolean)
 		.join("\n\n");
@@ -130,7 +146,7 @@ export async function submitTaskWork(
 	for (const [index, raw] of input.actions
 		.slice(0, TASK_RUNS.maxActions)
 		.entries()) {
-		const parsed = taskRunAction.safeParse(raw);
+		const parsed = proposedStep.safeParse(raw);
 		const reason = parsed.success
 			? droppedReason(parsed.data)
 			: parsed.error.message;
@@ -141,13 +157,18 @@ export async function submitTaskWork(
 		}
 	}
 
+	const deliverable = input.deliverable
+		? withoutEmDashes(input.deliverable)
+		: null;
+
 	const claimed = await db.$transaction(async (tx) => {
 		const { count } = await tx.taskRun.updateMany({
 			where: { id: taskRunId, status: { in: ["QUEUED", "WORKING"] } },
 			data: {
 				status: "AWAITING_APPROVAL",
-				summary: input.summary,
-				deliverable: input.deliverable,
+				summary: withoutEmDashes(input.summary),
+				deliverable,
+				proposedDeliverable: deliverable,
 			},
 		});
 		if (count === 0) return false;
@@ -159,6 +180,7 @@ export async function submitTaskWork(
 				kind: action.kind,
 				why,
 				payload: action,
+				proposedPayload: action,
 			})),
 		});
 		return true;
@@ -195,10 +217,13 @@ export async function runPullRequestAction(
 			},
 		});
 		if (waiting === 0) {
-			await db.taskRun.updateMany({
+			const { count } = await db.taskRun.updateMany({
 				where: { id: action.runId, status: "AWAITING_APPROVAL" },
 				data: { status: "FINISHED", finishedAt: new Date() },
 			});
+			if (count > 0) {
+				await queueLessonReview({ kind: "task-run", id: action.runId });
+			}
 		}
 	};
 

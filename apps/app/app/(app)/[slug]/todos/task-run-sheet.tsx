@@ -18,6 +18,7 @@ import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { TaskRunActionCard } from "./task-run-action";
+import { TaskRunWork } from "./task-run-work";
 
 type Run = RouterOutputs["taskRuns"]["get"];
 
@@ -85,6 +86,33 @@ function StartForm({
 	);
 }
 
+function FinishRun({ runId }: { runId: string }) {
+	const trpc = useTRPC();
+	const cache = useCrmCache();
+	const finish = useMutation(
+		trpc.taskRuns.finish.mutationOptions({
+			onSuccess: async () => {
+				await cache.taskRuns();
+				toast.success("Finished. The agent learns from your changes.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	return (
+		<DetailSheetSection>
+			<Button
+				size="sm"
+				disabled={finish.isPending}
+				onClick={() => finish.mutate({ id: runId })}
+			>
+				{finish.isPending ? <Spinner /> : null}
+				Mark as finished
+			</Button>
+		</DetailSheetSection>
+	);
+}
+
 function RunView({ run }: { run: Run }) {
 	const needsGoogle = run.actions.some(
 		(action) =>
@@ -92,10 +120,12 @@ function RunView({ run }: { run: Run }) {
 			((action.payload.kind === "EMAIL" && !run.canSendEmail) ||
 				(action.payload.kind === "EVENT" && !run.canAddToCalendar)),
 	);
-	const copy = async () => {
-		await navigator.clipboard.writeText(run.deliverable ?? "");
-		toast.success("Copied.");
-	};
+	const open = run.actions.some(
+		(action) =>
+			action.status === "PROPOSED" ||
+			action.status === "RUNNING" ||
+			action.status === "FAILED",
+	);
 
 	return (
 		<>
@@ -104,18 +134,7 @@ function RunView({ run }: { run: Run }) {
 					<Markdown>{run.summary}</Markdown>
 				</DetailSheetSection>
 			) : null}
-			{run.deliverable ? (
-				<DetailSheetSection
-					title="The work"
-					action={
-						<Button size="xs" variant="ghost" onClick={() => void copy()}>
-							Copy
-						</Button>
-					}
-				>
-					<Markdown>{run.deliverable}</Markdown>
-				</DetailSheetSection>
-			) : null}
+			{run.deliverable ? <TaskRunWork run={run} /> : null}
 			{run.actions.length > 0 ? (
 				<DetailSheetSection title="Next steps for your approval">
 					<div className="flex flex-col gap-3">
@@ -132,6 +151,9 @@ function RunView({ run }: { run: Run }) {
 						</ul>
 					</div>
 				</DetailSheetSection>
+			) : null}
+			{run.status === "AWAITING_APPROVAL" && !open ? (
+				<FinishRun runId={run.id} />
 			) : null}
 		</>
 	);

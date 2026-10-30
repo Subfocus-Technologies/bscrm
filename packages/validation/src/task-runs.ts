@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withoutEmDashes } from "./plain-text";
 
 export const TASK_RUNS = {
 	budget: 8,
@@ -29,19 +30,27 @@ export const TASK_RUNS = {
 
 const address = z.string().trim().toLowerCase().email();
 
+function writing(maxLength: number) {
+	return z.string().trim().max(maxLength).overwrite(withoutEmDashes);
+}
+
+function requiredWriting(maxLength: number) {
+	return z.string().trim().min(1).max(maxLength).overwrite(withoutEmDashes);
+}
+
 export const emailAction = z.object({
 	kind: z.literal("EMAIL"),
-	to: address,
+	to: z.union([z.literal(""), address]),
 	cc: z.array(address).max(TASK_RUNS.email.maxCopied).default([]),
-	subject: z.string().trim().min(1).max(TASK_RUNS.email.subjectMaxLength),
-	body: z.string().trim().min(1).max(TASK_RUNS.email.bodyMaxLength),
+	subject: requiredWriting(TASK_RUNS.email.subjectMaxLength),
+	body: requiredWriting(TASK_RUNS.email.bodyMaxLength),
 	emailThreadId: z.string().trim().min(1).nullable().default(null),
 });
 
 export const eventAction = z.object({
 	kind: z.literal("EVENT"),
-	title: z.string().trim().min(1).max(TASK_RUNS.todo.titleMaxLength),
-	description: z.string().trim().max(TASK_RUNS.email.bodyMaxLength).default(""),
+	title: requiredWriting(TASK_RUNS.todo.titleMaxLength),
+	description: writing(TASK_RUNS.email.bodyMaxLength).default(""),
 	startsAt: z.string().datetime().nullable().default(null),
 	minutes: z
 		.number()
@@ -54,7 +63,7 @@ export const eventAction = z.object({
 
 export const todoAction = z.object({
 	kind: z.literal("TODO"),
-	title: z.string().trim().min(1).max(TASK_RUNS.todo.titleMaxLength),
+	title: requiredWriting(TASK_RUNS.todo.titleMaxLength),
 	dueDate: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/, "A due date is YYYY-MM-DD.")
