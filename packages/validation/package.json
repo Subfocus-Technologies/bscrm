@@ -21,6 +21,7 @@
 		"./opportunities": "./src/opportunities.ts",
 		"./priorities": "./src/priorities.ts",
 		"./saved-view": "./src/saved-view.ts",
+		"./task-runs": "./src/task-runs.ts",
 		"./todos": "./src/todos.ts"
 	},
 	"scripts": {

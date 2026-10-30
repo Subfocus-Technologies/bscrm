@@ -354,6 +354,33 @@ every rule; the tool `propose_todos` is thin.
   waiting REPLY suggestions on that thread become `DONE` and waiting drafts are
   discarded, whoever answered and from wherever.
 
+## Do it for me
+
+`task-run` is a research-lane task a person starts on one to-do. The agent does
+the work, then stops. `lib/task-runs.ts` holds every rule, the tool
+`submit_task_work` is thin, and `TaskRunsService` (`apps/api/src/todos`) carries
+out what a person approves.
+
+- **The agent proposes, a person disposes.** A session can write only one thing:
+  `submit_task_work` saves a summary, the finished work and up to
+  `TASK_RUNS.maxActions` steps as `PROPOSED` `TaskRunAction` rows. No agent tool
+  sends an email, adds an event or changes a repository.
+- **Approval is one row claim.** `taskRuns.approve` moves a step to `RUNNING`
+  with `updateMany` on its status, for the person who asked for the run, so a
+  double click cannot send twice and nobody else can approve it. The person's
+  edits replace the payload before it runs. A failed step can be tried again.
+- **Steps run as the person who approved them.** Email goes from their Gmail and
+  events from their calendar, through the same services as the To-do page.
+- **Code access is optional and stops at a draft.** `AGENT_REPO_TOKEN` and
+  `AGENT_REPOS` give a run `read_repo`. An approved `PULL_REQUEST` step queues a
+  direct `task-run-pull-request` task, because the API holds no GitHub client.
+  It opens a draft on a new branch. Nothing here merges, and the branch rules of
+  each repository still apply. Without the variables a run writes a
+  specification instead.
+- **A run that stops reads as failed.** When the `AgentTask` finishes and the run
+  never handed over, the API reports the task's outcome, so a person can run it
+  again.
+
 ## Events, awards and speaking
 
 `opportunity-review` is a research-lane task. It runs only when a person presses

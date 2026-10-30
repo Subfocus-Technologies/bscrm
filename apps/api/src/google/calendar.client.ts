@@ -20,6 +20,7 @@ export type NewEvent = {
 	start: Date;
 	end: Date;
 	timeZone: string;
+	attendees?: readonly string[];
 };
 
 export type GoogleEvent = {
@@ -114,12 +115,22 @@ export class CalendarClient {
 		accessToken: string,
 		event: NewEvent,
 	): Promise<MailboxResult<GoogleEvent>> {
-		return this.api.post<GoogleEvent>(EVENTS_URL, accessToken, {
-			summary: event.summary,
-			description: event.description,
-			start: { dateTime: event.start.toISOString(), timeZone: event.timeZone },
-			end: { dateTime: event.end.toISOString(), timeZone: event.timeZone },
-		});
+		const attendees = event.attendees ?? [];
+
+		return this.api.post<GoogleEvent>(
+			attendees.length > 0 ? `${EVENTS_URL}?sendUpdates=all` : EVENTS_URL,
+			accessToken,
+			{
+				summary: event.summary,
+				description: event.description,
+				start: {
+					dateTime: event.start.toISOString(),
+					timeZone: event.timeZone,
+				},
+				end: { dateTime: event.end.toISOString(), timeZone: event.timeZone },
+				attendees: attendees.map((email) => ({ email })),
+			},
+		);
 	}
 
 	async upcomingEvents(

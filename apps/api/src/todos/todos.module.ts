@@ -4,7 +4,10 @@ import { CalendarClient } from "../google/calendar.client";
 import { GmailClient } from "../google/gmail.client";
 import { MailboxModule } from "../mailbox/mailbox.module";
 import { TrpcModule } from "../trpc/trpc.module";
+import { CalendarSlotsService } from "./calendar-slots.service";
 import { EmailReplyService } from "./email-reply.service";
+import { TaskRunsRouter } from "./task-runs.router";
+import { TaskRunsService } from "./task-runs.service";
 import { TodosRouter } from "./todos.router";
 import { TodosService } from "./todos.service";
 
@@ -15,7 +18,10 @@ import { TodosService } from "./todos.service";
 		EmailReplyService,
 		GmailClient,
 		CalendarClient,
+		CalendarSlotsService,
+		TaskRunsService,
 		TodosRouter,
+		TaskRunsRouter,
 	],
 })
 export class TodosModule {}

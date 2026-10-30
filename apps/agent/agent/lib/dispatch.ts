@@ -23,6 +23,11 @@ import { runSlackChannelJoin } from "./slack-join-task";
 import { runSlackPeopleMatch } from "./slack-people";
 import { staleTaskSweep } from "./stale-tasks";
 import {
+	preflightTaskRun,
+	runPullRequestAction,
+	taskRunIdOf,
+} from "./task-runs";
+import {
 	claimDue,
 	completeTask,
 	DIRECT_KINDS,
@@ -134,6 +139,11 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 		return;
 	}
 
+	if (task.kind === "task-run-pull-request") {
+		await completeTask(task.id, await runPullRequestAction(task.payload));
+		return;
+	}
+
 	if (task.kind === "agent-event") {
 		const event = crmEventTask.safeParse(task.payload);
 		if (event.success) await queueFilingForEvent(event.data);
@@ -223,6 +233,14 @@ async function beginResearch(
 		}
 		if (preflight.kind === "deferred") {
 			await deferTask(task.id, preflight.until, preflight.reason);
+			return;
+		}
+	}
+
+	if (task.kind === "task-run") {
+		const preflight = await preflightTaskRun(task.payload);
+		if (preflight.kind === "done") {
+			await completeTask(task.id, preflight.outcome);
 			return;
 		}
 	}
@@ -336,6 +354,11 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 		const parsed = investorPayload(task.payload);
 		if (parsed) records.fundraiseId = parsed.fundraiseId;
 		if (parsed?.investorId) records.investorId = parsed.investorId;
+	}
+
+	if (task.kind === "task-run") {
+		const taskRunId = taskRunIdOf(task.payload);
+		if (taskRunId) records.taskRunId = taskRunId;
 	}
 
 	if (task.kind === "opportunity-review") {
@@ -546,6 +569,8 @@ function work(
 			return "Write the email to the investor in your instructions and save it with draft_investor_email. A person approves it before anything is sent.";
 		case "email-actions":
 			return "Read the email conversation in your instructions and work out what our side should do about it, then call propose_todos once. Nothing is sent and nothing becomes a task until a person approves it.";
+		case "task-run":
+			return "Do the to-do in your instructions yourself, read what the CRM holds first, then call submit_task_work once with the finished work and the next steps for approval.";
 		case "opportunity-review":
 			return "Search the web for what your instructions ask for, read each page, then call save_opportunities once with the best of them.";
 		case "note-actions":

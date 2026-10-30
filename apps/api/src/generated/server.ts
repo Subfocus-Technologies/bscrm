@@ -36,6 +36,7 @@ import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedVie
 import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
+import { taskRunStartInput, taskRunStartOutput, taskRunIdInput, taskRunOutput, taskRunsListInput, taskRunsListOutput, taskRunStatusesInput, taskRunStatusesOutput, taskRunApproveInput, taskRunDecisionOutput, taskRunActionIdInput } from "../todos/task-runs.contracts";
 import { suggestionsInput, suggestionsOutput, addTodoInput, addTodoOutput, suggestionIdInput, suggestionDecisionOutput, scheduleOutput, threadReplyInput, threadReplyOutput, requestReplyInput, requestReplyOutput, sendReplyInput, sendReplyOutput, discardReplyOutput } from "../todos/todos.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, domainBusinessInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput, inviteListOutput, addMemberInput, inviteOutput, cancelInviteInput, cancelInviteOutput, removeMemberInput, removeMemberOutput } from "../workspace/workspace.contracts";
@@ -892,6 +893,32 @@ const appRouter = t.router({
     remove: publicProcedure
       .input(deleteSsoProviderInput)
       .output(deleteSsoProviderOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  taskRuns: t.router({
+    start: publicProcedure
+      .input(taskRunStartInput)
+      .output(taskRunStartOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    get: publicProcedure
+      .input(taskRunIdInput)
+      .output(taskRunOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    list: publicProcedure
+      .input(taskRunsListInput)
+      .output(taskRunsListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    statuses: publicProcedure
+      .input(taskRunStatusesInput)
+      .output(taskRunStatusesOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    approve: publicProcedure
+      .input(taskRunApproveInput)
+      .output(taskRunDecisionOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    skip: publicProcedure
+      .input(taskRunActionIdInput)
+      .output(taskRunDecisionOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   todos: t.router({

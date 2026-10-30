@@ -4,7 +4,6 @@ import {
 	type Prisma,
 	TodoSuggestionStatus,
 } from "@crm/db";
-import { workspaceDayStart } from "@crm/db/day";
 import { WORKSPACE_TIME_ZONE } from "@crm/db/settings";
 import { TODOS, type TodoSuggestionView } from "@crm/validation/todos";
 import {
@@ -17,14 +16,12 @@ import {
 import { InjectDatabase } from "../database/database.constants";
 import { CalendarClient } from "../google/calendar.client";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
-import { firstFreeSlot, type Interval } from "./free-slot";
+import { CalendarSlotsService } from "./calendar-slots.service";
 import type {
 	AddTodoInput,
 	SuggestionOutput,
 	SuggestionsInput,
 } from "./todos.contracts";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const VIEW_STATUSES = {
 	PROPOSED: [TodoSuggestionStatus.PROPOSED],
@@ -146,10 +143,6 @@ type ClaimedSuggestion = {
 	companyId: string | null;
 };
 
-function endOfDay(at: Date): Date {
-	return new Date(workspaceDayStart(at).getTime() + DAY_MS);
-}
-
 function taskBody(item: { detail: string | null; quote: string }): string {
 	return [item.detail, `"${item.quote}"`].filter(Boolean).join("\n\n");
 }
@@ -162,6 +155,7 @@ export class TodosService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly tokens: MailboxTokenService,
 		private readonly calendar: CalendarClient,
+		private readonly slots: CalendarSlotsService,
 	) {}
 
 	async suggestions(input: SuggestionsInput, actingUserId: string) {
@@ -300,7 +294,7 @@ export class TodosService {
 			);
 		}
 
-		const slot = await this.freeSlot(token.accessToken, item.dueAt);
+		const slot = await this.slots.find(token.accessToken, item.dueAt);
 		const event = await this.calendar.insertEvent(token.accessToken, {
 			summary: item.title,
 			description: taskBody(item),
@@ -342,39 +336,6 @@ export class TodosService {
 			endsAt: slot.end.toISOString(),
 			eventUrl: event.data.htmlLink ?? null,
 		};
-	}
-
-	private async freeSlot(
-		accessToken: string,
-		dueAt: Date | null,
-	): Promise<Interval> {
-		const from = new Date();
-		const until = new Date(from.getTime() + TODOS.calendar.searchMs);
-		const busy = await this.calendar.busyTimes(accessToken, {
-			timeMin: from,
-			timeMax: until,
-			timeZone: WORKSPACE_TIME_ZONE,
-		});
-		if (busy.outcome !== "ok") {
-			throw new BadRequestException(
-				`Google Calendar did not say when you are free: ${busy.reason}.`,
-			);
-		}
-
-		const taken = busy.data.map((time) => ({
-			start: new Date(time.start),
-			end: new Date(time.end),
-		}));
-		const deadline = dueAt && dueAt > from ? endOfDay(dueAt) : until;
-		const slot =
-			firstFreeSlot({ busy: taken, from, until: deadline }) ??
-			firstFreeSlot({ busy: taken, from, until });
-		if (!slot) {
-			throw new BadRequestException(
-				"Your calendar has no free half hour in working hours for the next two weeks.",
-			);
-		}
-		return slot;
 	}
 
 	private async decide(

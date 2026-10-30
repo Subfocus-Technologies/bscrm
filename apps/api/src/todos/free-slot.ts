@@ -27,8 +27,10 @@ export function firstFreeSlot(input: {
 	busy: readonly Interval[];
 	from: Date;
 	until: Date;
+	durationMs?: number;
 }): Interval | null {
 	const { slotMs, stepMs, dayStartHour, dayEndHour } = TODOS.calendar;
+	const length = input.durationMs ?? slotMs;
 
 	for (
 		let day = workspaceDayStart(input.from);
@@ -42,8 +44,8 @@ export function firstFreeSlot(input: {
 		const closes = new Date(day.getTime() + dayEndHour * HOUR_MS);
 		let start = roundUp(input.from > opens ? input.from : opens, stepMs);
 
-		while (start.getTime() + slotMs <= closes.getTime()) {
-			const slot = { start, end: new Date(start.getTime() + slotMs) };
+		while (start.getTime() + length <= closes.getTime()) {
+			const slot = { start, end: new Date(start.getTime() + length) };
 			if (slot.end > input.until) return null;
 			if (!overlaps(slot, input.busy)) return slot;
 			start = new Date(start.getTime() + stepMs);

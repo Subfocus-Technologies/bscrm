@@ -50,6 +50,7 @@ export default defineDynamic({
 				attributes.incomingMeetingNoteId,
 			);
 			const mailboxUserId = attributeText.parse(attributes.mailboxUserId);
+			const taskRunId = attributeText.parse(attributes.taskRunId);
 			const opportunityKind = attributeOpportunityKind.parse(
 				attributes.opportunityKind,
 			);
@@ -81,6 +82,7 @@ export default defineDynamic({
 					replyRequested,
 					replyInstructions,
 					opportunityKind,
+					taskRunId,
 				},
 			);
 
@@ -96,6 +98,7 @@ export default defineDynamic({
 				mailboxUserId,
 				replyRequested,
 				opportunityKind,
+				taskRunId,
 			});
 
 			return defineInstructions({

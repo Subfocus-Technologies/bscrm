@@ -58,6 +58,8 @@ model User {
   ownedPriorities             WeeklyPriority[]      @relation("WeeklyPriorityOwner")
   createdPriorities           WeeklyPriority[]      @relation("WeeklyPriorityCreator")
   updatedPriorities           WeeklyPriority[]      @relation("WeeklyPriorityUpdater")
+  taskRuns                    TaskRun[]             @relation("TaskRunRequester")
+  decidedTaskActions          TaskRunAction[]       @relation("TaskRunActionDecider")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -1315,6 +1317,7 @@ model Activity {
   followUps           MeetingFollowUp[]    @relation("MeetingFollowUps")
   createdFromFollowUp MeetingFollowUp?     @relation("FollowUpTask")
   createdFromTodo     TodoSuggestion?      @relation("TodoSuggestionTask")
+  taskRuns            TaskRun[]
   incomingMeetingNote IncomingMeetingNote?
 
   createdAt DateTime @default(now())
@@ -2155,4 +2158,66 @@ model WeeklyPriority {
   @@index([status, completedAt])
   @@index([ownerId, status])
   @@map("weeklyPriority")
+}
+
+enum TaskRunStatus {
+  QUEUED
+  WORKING
+  AWAITING_APPROVAL
+  FINISHED
+}
+
+enum TaskRunActionKind {
+  EMAIL
+  EVENT
+  TODO
+  PULL_REQUEST
+}
+
+enum TaskRunActionStatus {
+  PROPOSED
+  RUNNING
+  DONE
+  SKIPPED
+  FAILED
+}
+
+model TaskRun {
+  id           String          @id @default(cuid())
+  taskId       String
+  task         Activity        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User            @relation("TaskRunRequester", fields: [userId], references: [id], onDelete: Cascade)
+  instructions String?
+  status       TaskRunStatus   @default(QUEUED)
+  summary      String?
+  deliverable  String?
+  finishedAt   DateTime?
+  actions      TaskRunAction[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([taskId, createdAt])
+  @@map("taskRun")
+}
+
+model TaskRunAction {
+  id          String              @id @default(cuid())
+  runId       String
+  run         TaskRun             @relation(fields: [runId], references: [id], onDelete: Cascade)
+  position    Int
+  kind        TaskRunActionKind
+  why         String
+  payload     Json
+  status      TaskRunActionStatus @default(PROPOSED)
+  result      String?
+  decidedById String?
+  decidedBy   User?               @relation("TaskRunActionDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt   DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([runId, position])
+  @@map("taskRunAction")
 }

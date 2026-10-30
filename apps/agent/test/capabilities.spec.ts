@@ -13,6 +13,7 @@ const KEYS = [
 	"PERPLEXITY_API_KEY",
 	"BRAVE_SEARCH_API_KEY",
 	"BLOB_READ_WRITE_TOKEN",
+	"AGENT_REPO_TOKEN",
 ] as const;
 
 const saved: Record<string, string | undefined> = {};

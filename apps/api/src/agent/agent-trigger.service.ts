@@ -10,6 +10,7 @@ import {
 	OPPORTUNITIES,
 	type OpportunityKind,
 } from "@crm/validation/opportunities";
+import { TASK_RUNS } from "@crm/validation/task-runs";
 import { type EmailActionsPayload, TODOS } from "@crm/validation/todos";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -567,6 +568,57 @@ export class AgentTriggerService {
 		this.poke();
 
 		return true;
+	}
+
+	async taskRunRequested(input: {
+		taskRunId: string;
+		contactId: string | null;
+		companyId: string | null;
+		dealId: string | null;
+	}): Promise<void> {
+		await this.db.agentTask.create({
+			data: {
+				contactId: input.contactId,
+				companyId: input.companyId,
+				dealId: input.dealId,
+				kind: "task-run",
+				reason: "A person pressed Do it for me",
+				priority: PRIORITY.taskRun,
+				budget: TASK_RUNS.budget,
+				dueAt: new Date(),
+				subject: input.taskRunId,
+				payload: { taskRunId: input.taskRunId } satisfies Prisma.InputJsonValue,
+			},
+		});
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "task-run",
+			taskRunId: input.taskRunId,
+		});
+
+		this.poke();
+	}
+
+	async pullRequestApproved(actionId: string): Promise<void> {
+		await this.db.agentTask.create({
+			data: {
+				kind: "task-run-pull-request",
+				reason: "A person approved a draft code change",
+				priority: PRIORITY.taskRunPullRequest,
+				dueAt: new Date(),
+				subject: actionId,
+				payload: { actionId } satisfies Prisma.InputJsonValue,
+			},
+		});
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "task-run-pull-request",
+			actionId,
+		});
+
+		this.poke();
 	}
 
 	async meetingPrepRequested(contactId: string, when: Date): Promise<boolean> {

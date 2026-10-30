@@ -20,6 +20,8 @@ import type {
 
 const MAX_REFERENCES = 20;
 
+type ReplyThread = Awaited<ReturnType<EmailReplyService["requireThread"]>>;
+
 @Injectable()
 export class EmailReplyService {
 	private readonly logger = new Logger(EmailReplyService.name);
@@ -109,6 +111,40 @@ export class EmailReplyService {
 			);
 		}
 
+		return this.deliver(
+			{ to, cc: [], subject: input.subject, body: input.body, thread },
+			actingUserId,
+		);
+	}
+
+	async sendEmail(
+		input: {
+			to: string;
+			cc: readonly string[];
+			subject: string;
+			body: string;
+			emailThreadId: string | null;
+		},
+		actingUserId: string,
+	) {
+		const thread = input.emailThreadId
+			? await this.requireThread(input.emailThreadId)
+			: null;
+
+		return this.deliver({ ...input, thread }, actingUserId);
+	}
+
+	private async deliver(
+		input: {
+			to: string;
+			cc: readonly string[];
+			subject: string;
+			body: string;
+			thread: ReplyThread | null;
+		},
+		actingUserId: string,
+	) {
+		const { to, cc, subject, thread } = input;
 		const token = await this.tokens.gmailSendToken(actingUserId);
 		if (token.outcome !== "ok") {
 			throw new BadRequestException("Allow sending from your Gmail first.");
@@ -118,7 +154,7 @@ export class EmailReplyService {
 			where: { id: actingUserId },
 			select: { name: true, email: true },
 		});
-		const references = thread.messages
+		const references = (thread?.messages ?? [])
 			.map((message) => message.rfcMessageId)
 			.slice(-MAX_REFERENCES);
 		const body = signedBody(input.body, sender.name);
@@ -127,21 +163,22 @@ export class EmailReplyService {
 			raw: composeRawEmail({
 				from: { name: sender.name, email: sender.email },
 				to,
-				subject: input.subject,
+				cc,
+				subject,
 				body,
-				inReplyTo: thread.lastInbound?.rfcMessageId ?? null,
+				inReplyTo: thread?.lastInbound?.rfcMessageId ?? null,
 				references,
 			}),
 			threadId: await this.gmailThreadId(
 				token.accessToken,
-				thread.lastInbound,
+				thread?.lastInbound ?? null,
 				actingUserId,
 			),
 		});
 		if (sent.outcome !== "ok" || !sent.data.id) {
 			this.logger.warn({
-				message: "Reply failed to send",
-				emailThreadId: thread.id,
+				message: "Email failed to send",
+				emailThreadId: thread?.id ?? null,
 				outcome: sent.outcome,
 				reason: "reason" in sent ? sent.reason : null,
 				userId: actingUserId,
@@ -157,20 +194,49 @@ export class EmailReplyService {
 				? header(stored.data.payload?.headers, "message-id")
 				: null;
 		const sentAt = new Date();
-		const record = {
-			toEmail: to,
-			subject: input.subject,
-			body,
-			status: EmailReplyStatus.SENT,
-			gmailMessageId: sent.data.id,
-			rfcMessageId,
-			sentAt,
-		};
 
-		const reply = await this.db.$transaction(async (tx) => {
+		const replyId = thread
+			? await this.recordReply(thread.id, actingUserId, {
+					toEmail: to,
+					subject,
+					body,
+					gmailMessageId: sent.data.id,
+					rfcMessageId,
+					sentAt,
+				})
+			: null;
+
+		this.logger.log({
+			message: "Email sent",
+			emailThreadId: thread?.id ?? null,
+			replyId,
+			userId: actingUserId,
+		});
+		return {
+			id: replyId ?? sent.data.id,
+			sentAt: sentAt.toISOString(),
+			toEmail: to,
+		};
+	}
+
+	private async recordReply(
+		emailThreadId: string,
+		actingUserId: string,
+		fields: {
+			toEmail: string;
+			subject: string;
+			body: string;
+			gmailMessageId: string;
+			rfcMessageId: string | null;
+			sentAt: Date;
+		},
+	): Promise<string> {
+		const record = { ...fields, status: EmailReplyStatus.SENT };
+
+		return this.db.$transaction(async (tx) => {
 			const draft = await tx.emailReply.findFirst({
 				where: {
-					emailThreadId: thread.id,
+					emailThreadId,
 					userId: actingUserId,
 					status: EmailReplyStatus.DRAFT,
 				},
@@ -183,34 +249,22 @@ export class EmailReplyService {
 						select: { id: true },
 					})
 				: await tx.emailReply.create({
-						data: {
-							...record,
-							emailThreadId: thread.id,
-							userId: actingUserId,
-						},
+						data: { ...record, emailThreadId, userId: actingUserId },
 						select: { id: true },
 					});
 
 			await tx.todoSuggestion.updateMany({
 				where: {
-					emailThreadId: thread.id,
+					emailThreadId,
 					userId: actingUserId,
 					kind: "REPLY",
 					status: TodoSuggestionStatus.PROPOSED,
 				},
-				data: { status: TodoSuggestionStatus.DONE, decidedAt: sentAt },
+				data: { status: TodoSuggestionStatus.DONE, decidedAt: fields.sentAt },
 			});
 
-			return saved;
+			return saved.id;
 		});
-
-		this.logger.log({
-			message: "Reply sent",
-			emailThreadId: thread.id,
-			replyId: reply.id,
-			userId: actingUserId,
-		});
-		return { id: reply.id, sentAt: sentAt.toISOString(), toEmail: to };
 	}
 
 	async discard(
@@ -253,7 +307,7 @@ export class EmailReplyService {
 		return found.outcome === "ok" ? (found.data.threadId ?? null) : null;
 	}
 
-	private async requireThread(emailThreadId: string) {
+	async requireThread(emailThreadId: string) {
 		const thread = await this.db.emailThread.findUnique({
 			where: { id: emailThreadId },
 			select: {

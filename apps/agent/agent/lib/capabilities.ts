@@ -67,6 +67,12 @@ export function capabilitiesFrom(
 			enabled: contextDev !== null,
 		},
 		{
+			...fromEnv("AGENT_REPO_TOKEN"),
+			label: "Code repositories",
+			gives:
+				"reading our code in a task run, and draft pull requests a person approves",
+		},
+		{
 			...fromEnv("BRAVE_SEARCH_API_KEY"),
 			label: "Web search",
 			gives:

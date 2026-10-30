@@ -1,6 +1,7 @@
 export type OutgoingEmail = {
 	from: { name: string; email: string };
 	to: string;
+	cc?: readonly string[];
 	subject: string;
 	body: string;
 	inReplyTo: string | null;
@@ -31,6 +32,7 @@ export function composeRawEmail(email: OutgoingEmail): string {
 	const headers = [
 		`From: ${encodedWord(email.from.name)} <${email.from.email}>`,
 		`To: ${email.to}`,
+		email.cc?.length ? `Cc: ${email.cc.join(", ")}` : null,
 		`Subject: ${encodedWord(email.subject)}`,
 		"MIME-Version: 1.0",
 		'Content-Type: text/plain; charset="UTF-8"',

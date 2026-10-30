@@ -20,6 +20,8 @@ export const TASK_KINDS = [
 	"meeting-actions",
 	"note-actions",
 	"opportunity-review",
+	"task-run",
+	"task-run-pull-request",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];
@@ -30,6 +32,7 @@ export const DIRECT_KINDS = [
 	"slack-people-match",
 	"slack-channel-join",
 	"agent-event",
+	"task-run-pull-request",
 ] as const;
 
 export type DirectKind = (typeof DIRECT_KINDS)[number];
@@ -68,6 +71,8 @@ export const PRIORITY = {
 	emailActions: 250,
 	meetingActions: 240,
 	noteActions: 230,
+	taskRun: 650,
+	taskRunPullRequest: 650,
 	investorDiscovery: 60,
 	sweep: 50,
 	companyProfile: 40,

@@ -15,6 +15,7 @@ import { capabilitiesMarkdown } from "./capabilities";
 import { investorPreamble } from "./investors";
 import { meetingNotesMarkdown } from "./meeting-notes";
 import { opportunityPreamble } from "./opportunities";
+import { taskRunMarkdown } from "./task-runs";
 import {
 	emailActionsMarkdown,
 	meetingActionsMarkdown,
@@ -39,6 +40,7 @@ export type Opened = {
 	replyRequested?: boolean;
 	replyInstructions?: string | null;
 	opportunityKind?: OpportunityKind | null;
+	taskRunId?: string | null;
 };
 
 export type Preamble = {
@@ -71,6 +73,13 @@ export async function sessionPreamble(
 		const notes = await meetingNotesMarkdown(opened.activityId);
 		return notes
 			? { ...preamble, markdown: `${notes}\n\n${preamble.markdown}` }
+			: preamble;
+	}
+
+	if (opened.kind === "task-run" && opened.taskRunId) {
+		const work = await taskRunMarkdown(opened.taskRunId);
+		return work
+			? { ...preamble, markdown: `${work}\n\n${preamble.markdown}` }
 			: preamble;
 	}
 

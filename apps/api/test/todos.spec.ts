@@ -6,6 +6,7 @@ import { ActivityStampService } from "../src/crm/activity-stamp.service";
 import type { CalendarClient } from "../src/google/calendar.client";
 import type { GmailClient } from "../src/google/gmail.client";
 import type { MailboxTokenService } from "../src/mailbox/mailbox-token.service";
+import { CalendarSlotsService } from "../src/todos/calendar-slots.service";
 import { EmailReplyService } from "../src/todos/email-reply.service";
 import { TodosService } from "../src/todos/todos.service";
 
@@ -71,7 +72,12 @@ const tokens = {
 
 const agent = new AgentTriggerService(db);
 const stamp = new ActivityStampService(db);
-const todos = new TodosService(db, tokens, calendar);
+const todos = new TodosService(
+	db,
+	tokens,
+	calendar,
+	new CalendarSlotsService(calendar),
+);
 const replies = new EmailReplyService(db, agent, gmail, tokens);
 
 let contactId = "";
