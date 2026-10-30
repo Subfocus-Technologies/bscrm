@@ -67,6 +67,7 @@ const runs = new TaskRunsService(
 
 const emailPayload = {
 	kind: "EMAIL" as const,
+	toName: "",
 	to: "dan@example.test",
 	cc: [],
 	subject: "VAT",

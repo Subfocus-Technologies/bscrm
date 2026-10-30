@@ -109,7 +109,7 @@ describe("a task run", () => {
 			summary: "Done.",
 			deliverable: null,
 			actions: [
-				{ ...email, to: "not an address" },
+				{ ...email, to: "not an address", toName: "Dan Cox" },
 				{
 					kind: "PULL_REQUEST",
 					why: "Fix it.",
@@ -129,7 +129,7 @@ describe("a task run", () => {
 			where: { runId: taskRunId },
 			select: { payload: true },
 		});
-		expect(step.payload).toMatchObject({ to: "" });
+		expect(step.payload).toMatchObject({ to: "", toName: "Dan Cox" });
 	});
 
 	it("keeps what it proposed and removes em dashes from what it wrote", async () => {

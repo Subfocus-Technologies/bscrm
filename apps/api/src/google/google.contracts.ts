@@ -1,6 +1,6 @@
 import { EmailDirection, GoogleSyncStatus } from "@crm/db";
 import { z } from "zod";
-import { GOOGLE_SYNC_SOURCES } from "./google.constants";
+import { ADDRESS_SEARCH, GOOGLE_SYNC_SOURCES } from "./google.constants";
 
 export const setAutoCreateInput = z.object({
 	source: z.enum(GOOGLE_SYNC_SOURCES),
@@ -95,6 +95,23 @@ const emailThreadMessageOutput = z.object({
 	mailboxUrl: z.string().nullable(),
 	mailboxName: z.string().nullable(),
 });
+
+export const findAddressesInput = z.object({
+	query: z
+		.string()
+		.trim()
+		.min(ADDRESS_SEARCH.queryMinLength)
+		.max(ADDRESS_SEARCH.queryMaxLength),
+});
+
+export const foundAddressOutput = z.object({
+	email: z.string(),
+	name: z.string().nullable(),
+});
+
+export type FoundAddress = z.infer<typeof foundAddressOutput>;
+
+export const foundAddressesOutput = z.array(foundAddressOutput);
 
 export const emailThreadOutput = z.object({
 	id: z.string(),

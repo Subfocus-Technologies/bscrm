@@ -3,6 +3,7 @@ import { AgentModule } from "../agent/agent.module";
 import { MailboxModule } from "../mailbox/mailbox.module";
 import { MeetingNotesModule } from "../meeting-notes/meeting-notes.module";
 import { TrpcModule } from "../trpc/trpc.module";
+import { AddressFinderService } from "./address-finder.service";
 import { CalendarClient } from "./calendar.client";
 import { CalendarSyncService } from "./calendar-sync.service";
 import { ConversationService } from "./conversation.service";
@@ -18,6 +19,7 @@ import { NextMeetingsService } from "./next-meetings.service";
 	imports: [TrpcModule, MailboxModule, AgentModule, MeetingNotesModule],
 	providers: [
 		CalendarClient,
+		AddressFinderService,
 		CalendarSyncService,
 		GeminiNotesCollector,
 		GmailClient,

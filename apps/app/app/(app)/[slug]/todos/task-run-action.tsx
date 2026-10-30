@@ -11,6 +11,7 @@ import { Textarea } from "@crm/ui/components/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
+import { EmailAddressField } from "@/components/crm/email-address-field";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -90,10 +91,11 @@ function Editor({
 		return (
 			<FieldGroup>
 				<p className="text-muted-foreground text-xs">From {sendingFrom}</p>
-				<TextField
+				<EmailAddressField
 					label="To"
 					value={payload.to}
-					placeholder="Who this email goes to"
+					personName={payload.toName}
+					placeholder="Type a name or an address"
 					onChange={(to) => onChange({ ...payload, to })}
 				/>
 				<TextField
@@ -190,7 +192,8 @@ export function TaskRunActionCard({
 	const [payload, setPayload] = useState<Payload>(action.payload);
 	const copy = COPY[action.payload.kind];
 	const open = action.status === "PROPOSED" || action.status === "FAILED";
-	const missingRecipient = payload.kind === "EMAIL" && !payload.to.trim();
+	const recipient = payload.kind === "EMAIL" ? payload.to.trim() : null;
+	const missingRecipient = recipient !== null && !recipient.includes("@");
 	const blocked =
 		missingRecipient ||
 		(payload.kind === "EMAIL" && !run.canSendEmail) ||
@@ -274,7 +277,7 @@ export function TaskRunActionCard({
 						<Button
 							size="sm"
 							variant="outline"
-							disabled={busy}
+							disabled={busy || (missingRecipient && recipient !== "")}
 							onClick={() => save.mutate({ actionId: action.id, payload })}
 						>
 							{save.isPending ? <Spinner /> : null}

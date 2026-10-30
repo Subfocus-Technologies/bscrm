@@ -11,6 +11,7 @@ export const TASK_RUNS = {
 	listPageSize: 25,
 	event: { defaultMinutes: 30, maxAttendees: 10 },
 	email: {
+		toNameMaxLength: 120,
 		subjectMaxLength: 200,
 		bodyMaxLength: 8_000,
 		maxCopied: 5,
@@ -41,6 +42,7 @@ function requiredWriting(maxLength: number) {
 export const emailAction = z.object({
 	kind: z.literal("EMAIL"),
 	to: z.union([z.literal(""), address]),
+	toName: writing(TASK_RUNS.email.toNameMaxLength).default(""),
 	cc: z.array(address).max(TASK_RUNS.email.maxCopied).default([]),
 	subject: requiredWriting(TASK_RUNS.email.subjectMaxLength),
 	body: requiredWriting(TASK_RUNS.email.bodyMaxLength),

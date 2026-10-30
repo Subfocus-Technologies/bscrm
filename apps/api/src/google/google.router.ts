@@ -11,11 +11,14 @@ import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
+import { AddressFinderService } from "./address-finder.service";
 import { ConversationService } from "./conversation.service";
 import {
 	calendarEventInput,
 	calendarEventOutput,
 	emailThreadOutput,
+	findAddressesInput,
+	foundAddressesOutput,
 	googleConnectionStatusOutput,
 	purgeSyncedDataOutput,
 	revokeAccessOutput,
@@ -36,7 +39,21 @@ export class GoogleRouter {
 		@Inject(GoogleSyncService) private readonly sync: GoogleSyncService,
 		@Inject(ConversationService)
 		private readonly conversations: ConversationService,
+		@Inject(AddressFinderService)
+		private readonly addresses: AddressFinderService,
 	) {}
+
+	@Query({
+		input: findAddressesInput,
+		output: foundAddressesOutput,
+		meta: restMeta("POST", "/google/addresses/search", ["Google"]),
+	})
+	async findAddresses(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof findAddressesInput>,
+	) {
+		return this.addresses.find(ctx.user.id, input.query);
+	}
 
 	@Query({
 		output: googleConnectionStatusOutput,

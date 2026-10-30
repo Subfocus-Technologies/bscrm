@@ -7,3 +7,10 @@ export {
 	SCOPE_FOR_SOURCE,
 	SYNC_SCOPES,
 } from "../mailbox/mailbox.constants";
+
+export const ADDRESS_SEARCH = {
+	queryMinLength: 2,
+	queryMaxLength: 80,
+	messagesRead: 15,
+	maxResults: 5,
+} as const;

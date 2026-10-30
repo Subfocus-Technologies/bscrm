@@ -109,6 +109,15 @@ export class GmailClient {
 		});
 	}
 
+	async getMessageHeaders(
+		accessToken: string,
+		id: string,
+	): Promise<MailboxResult<GmailMessage>> {
+		return this.api.get<GmailMessage>(`${BASE}/messages/${id}`, accessToken, {
+			format: "metadata",
+		});
+	}
+
 	async getMessage(
 		accessToken: string,
 		id: string,

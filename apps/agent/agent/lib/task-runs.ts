@@ -98,7 +98,7 @@ export async function taskRunMarkdown(taskRunId: string): Promise<string> {
 		].join("\n"),
 		[
 			"## Rules for actions",
-			`- EMAIL: written as ${owner}, British English, plain text, ready to send, with a subject. End with a sign-off word such as "Thanks" and no name: the name is added on sending. It goes from ${owner}'s Subfocus address. Use an address only when the CRM or the to-do gives it. Never guess one: leave \`to\` as an empty string and ${owner} adds it before sending. Do not propose a TODO to find it. Set \`emailThreadId\` to the thread id from the history when this continues a conversation.`,
+			`- EMAIL: written as ${owner}, British English, plain text, ready to send, with a subject. End with a sign-off word such as "Thanks" and no name: the name is added on sending. It goes from ${owner}'s Subfocus address. Use an address only when the CRM or the to-do gives it. Never guess one: leave \`to\` as an empty string. Always set \`toName\` to the person's full name: the CRM uses it to find the address in ${owner}'s Gmail. Do not propose a TODO to find an address. Set \`emailThreadId\` to the thread id from the history when this continues a conversation.`,
 			"- EVENT: a calendar entry. Leave `startsAt` null to use the first free slot. Attendees get an invitation once it is approved.",
 			"- TODO: a follow-up for later, such as chasing a reply.",
 			"- Never say something has been sent, booked or done. Never promise a price, a date or a term the sources do not support.",

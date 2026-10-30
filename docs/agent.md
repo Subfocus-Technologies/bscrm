@@ -380,6 +380,10 @@ out what a person approves.
 - **A run that stops reads as failed.** When the `AgentTask` finishes and the run
   never handed over, the API reports the task's outcome, so a person can run it
   again.
+- **The agent names who an email goes to.** It sets \`toName\` on an \`EMAIL\`
+  step. \`google.findAddresses\` searches that person's own Gmail and the CRM's
+  contacts, and the To field fills itself when exactly one address matches.
+  Several matches show as buttons. Nothing is sent without approval.
 - **An email is a step, not a document.** The agent puts an email in an `EMAIL`
   step, with `to` empty when the CRM does not hold the address. A person fills
   in the address, edits the copy and sends. `Turn into an email` makes the same

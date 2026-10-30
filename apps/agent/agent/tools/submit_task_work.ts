@@ -34,6 +34,12 @@ export default defineTool({
 							.describe(
 								"The address, or an empty string when the CRM does not hold it.",
 							),
+						toName: z
+							.string()
+							.max(TASK_RUNS.email.toNameMaxLength)
+							.describe(
+								"The full name of the person this goes to. The CRM uses it to find their address in Gmail.",
+							),
 						cc: z.array(z.string()).max(TASK_RUNS.email.maxCopied),
 						subject: z.string().max(TASK_RUNS.email.subjectMaxLength),
 						body: z.string().max(TASK_RUNS.email.bodyMaxLength),
