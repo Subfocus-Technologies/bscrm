@@ -60,6 +60,8 @@ model User {
   updatedPriorities           WeeklyPriority[]      @relation("WeeklyPriorityUpdater")
   taskRuns                    TaskRun[]             @relation("TaskRunRequester")
   decidedTaskActions          TaskRunAction[]       @relation("TaskRunActionDecider")
+  agentLessons                AgentLesson[]         @relation("AgentLessonAuthor")
+  retiredAgentLessons         AgentLesson[]         @relation("AgentLessonRetirer")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -2076,6 +2078,7 @@ model EmailReply {
   toEmail        String
   subject        String
   body           String
+  draftBody      String?
   status         EmailReplyStatus @default(DRAFT)
   gmailMessageId String?
   rfcMessageId   String?
@@ -2183,19 +2186,21 @@ enum TaskRunActionStatus {
 }
 
 model TaskRun {
-  id           String          @id @default(cuid())
-  taskId       String
-  task         Activity        @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User            @relation("TaskRunRequester", fields: [userId], references: [id], onDelete: Cascade)
-  instructions String?
-  status       TaskRunStatus   @default(QUEUED)
-  summary      String?
-  deliverable  String?
-  finishedAt   DateTime?
-  actions      TaskRunAction[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id                  String          @id @default(cuid())
+  taskId              String
+  task                Activity        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User            @relation("TaskRunRequester", fields: [userId], references: [id], onDelete: Cascade)
+  instructions        String?
+  status              TaskRunStatus   @default(QUEUED)
+  summary             String?
+  deliverable         String?
+  proposedDeliverable String?
+  finishedAt          DateTime?
+  actions             TaskRunAction[]
+  lessons             AgentLesson[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   @@index([userId, status, createdAt])
   @@index([taskId, createdAt])
@@ -2203,21 +2208,53 @@ model TaskRun {
 }
 
 model TaskRunAction {
-  id          String              @id @default(cuid())
-  runId       String
-  run         TaskRun             @relation(fields: [runId], references: [id], onDelete: Cascade)
-  position    Int
-  kind        TaskRunActionKind
-  why         String
-  payload     Json
-  status      TaskRunActionStatus @default(PROPOSED)
-  result      String?
-  decidedById String?
-  decidedBy   User?               @relation("TaskRunActionDecider", fields: [decidedById], references: [id], onDelete: SetNull)
-  decidedAt   DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id              String              @id @default(cuid())
+  runId           String
+  run             TaskRun             @relation(fields: [runId], references: [id], onDelete: Cascade)
+  position        Int
+  kind            TaskRunActionKind
+  why             String
+  payload         Json
+  proposedPayload Json?
+  status          TaskRunActionStatus @default(PROPOSED)
+  result          String?
+  decidedById     String?
+  decidedBy       User?               @relation("TaskRunActionDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt       DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@index([runId, position])
   @@map("taskRunAction")
+}
+
+enum AgentLessonScope {
+  PERSONAL
+  TEAM
+}
+
+enum AgentLessonOrigin {
+  LEARNED
+  TAUGHT
+}
+
+model AgentLesson {
+  id          String            @id @default(cuid())
+  scope       AgentLessonScope
+  origin      AgentLessonOrigin
+  text        String
+  createdById String?
+  createdBy   User?             @relation("AgentLessonAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  taskRunId   String?
+  taskRun     TaskRun?          @relation(fields: [taskRunId], references: [id], onDelete: SetNull)
+  retiredAt   DateTime?
+  retiredById String?
+  retiredBy   User?             @relation("AgentLessonRetirer", fields: [retiredById], references: [id], onDelete: SetNull)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([scope, retiredAt, createdAt])
+  @@index([createdById, retiredAt, createdAt])
+  @@index([taskRunId])
+  @@map("agentLesson")
 }
