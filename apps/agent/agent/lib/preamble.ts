@@ -13,6 +13,7 @@ import {
 } from "./business-filing-learning";
 import { capabilitiesMarkdown } from "./capabilities";
 import { investorPreamble } from "./investors";
+import { lessonReviewMarkdown } from "./lessons";
 import { meetingNotesMarkdown } from "./meeting-notes";
 import { opportunityPreamble } from "./opportunities";
 import { taskRunMarkdown } from "./task-runs";
@@ -41,6 +42,7 @@ export type Opened = {
 	replyInstructions?: string | null;
 	opportunityKind?: OpportunityKind | null;
 	taskRunId?: string | null;
+	lessonSource?: string | null;
 };
 
 export type Preamble = {
@@ -59,6 +61,14 @@ export async function sessionPreamble(
 	if (opened.kind === "workspace-profile") return workspacePreamble();
 	if (opened.kind === "opportunity-review") {
 		return opportunitySessionPreamble(opened);
+	}
+	if (opened.kind === "lesson-review") {
+		return {
+			markdown: opened.lessonSource
+				? await lessonReviewMarkdown(opened.lessonSource)
+				: "",
+			focus: {},
+		};
 	}
 	if (
 		opened.kind === "investor-discovery" ||

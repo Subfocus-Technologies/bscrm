@@ -22,6 +22,7 @@ export const TASK_KINDS = [
 	"opportunity-review",
 	"task-run",
 	"task-run-pull-request",
+	"lesson-review",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];
@@ -73,6 +74,7 @@ export const PRIORITY = {
 	noteActions: 230,
 	taskRun: 650,
 	taskRunPullRequest: 650,
+	lessonReview: 220,
 	investorDiscovery: 60,
 	sweep: 50,
 	companyProfile: 40,

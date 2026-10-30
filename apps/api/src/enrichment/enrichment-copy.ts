@@ -26,6 +26,7 @@ const STEPS = {
 	"opportunity-review": "Looking for events, awards and speaking slots",
 	"task-run": "Working on a to-do",
 	"task-run-pull-request": "Opening a draft code change",
+	"lesson-review": "Learning from your edits",
 } satisfies Record<TaskKind, string>;
 
 const STEP_BY_KIND = new Map<string, string>(Object.entries(STEPS));

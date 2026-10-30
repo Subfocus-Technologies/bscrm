@@ -7,6 +7,11 @@ import { queueInvestorTasks } from "@crm/db/investors";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { INVESTORS, type InvestorTaskPayload } from "@crm/validation/investors";
 import {
+	LESSONS,
+	type LessonSource,
+	lessonSourceKey,
+} from "@crm/validation/lessons";
+import {
 	OPPORTUNITIES,
 	type OpportunityKind,
 } from "@crm/validation/opportunities";
@@ -616,6 +621,35 @@ export class AgentTriggerService {
 			message: "Agent task queued",
 			kind: "task-run-pull-request",
 			actionId,
+		});
+
+		this.poke();
+	}
+
+	async lessonReviewRequested(source: LessonSource): Promise<void> {
+		const subject = lessonSourceKey(source);
+		const open = await this.db.agentTask.findFirst({
+			where: { kind: "lesson-review", subject, finishedAt: null },
+			select: { id: true },
+		});
+		if (open) return;
+
+		await this.db.agentTask.create({
+			data: {
+				kind: "lesson-review",
+				reason: "A person changed or decided the agent's work",
+				priority: PRIORITY.lessonReview,
+				budget: LESSONS.budget,
+				dueAt: new Date(),
+				subject,
+				payload: source satisfies Prisma.InputJsonValue,
+			},
+		});
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "lesson-review",
+			subject,
 		});
 
 		this.poke();

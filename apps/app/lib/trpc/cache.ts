@@ -35,6 +35,7 @@ export type CrmCache = {
 	todos(options?: Options): Promise<void>;
 	priorities(options?: Options): Promise<void>;
 	taskRuns(options?: Options): Promise<void>;
+	lessons(options?: Options): Promise<void>;
 	opportunities(options?: Options): Promise<void>;
 	removed(record: RemovedRecord): Promise<void>;
 	removedMany(records: RemovedRecords): Promise<void>;
@@ -219,6 +220,8 @@ export function useCrmCache(): CrmCache {
 				activityKeys(),
 				options,
 			),
+
+		lessons: (options) => run([trpc.lessons.list.queryKey()], [], options),
 
 		priorities: (options) =>
 			run([trpc.priorities.week.queryKey()], [], options),

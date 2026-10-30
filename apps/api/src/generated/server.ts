@@ -36,7 +36,8 @@ import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedVie
 import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
 import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
-import { taskRunStartInput, taskRunStartOutput, taskRunIdInput, taskRunOutput, taskRunsListInput, taskRunsListOutput, taskRunStatusesInput, taskRunStatusesOutput, taskRunApproveInput, taskRunDecisionOutput, taskRunActionIdInput } from "../todos/task-runs.contracts";
+import { lessonsListInput, lessonsListOutput, lessonAddInput, lessonIdOutput, lessonIdInput } from "../todos/lessons.contracts";
+import { taskRunStartInput, taskRunStartOutput, taskRunIdInput, taskRunOutput, taskRunsListInput, taskRunsListOutput, taskRunStatusesInput, taskRunStatusesOutput, taskRunApproveInput, taskRunDecisionOutput, taskRunActionIdInput, taskRunSaveStepOutput, taskRunSaveWorkInput } from "../todos/task-runs.contracts";
 import { suggestionsInput, suggestionsOutput, addTodoInput, addTodoOutput, suggestionIdInput, suggestionDecisionOutput, scheduleOutput, threadReplyInput, threadReplyOutput, requestReplyInput, requestReplyOutput, sendReplyInput, sendReplyOutput, discardReplyOutput } from "../todos/todos.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, domainBusinessInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
 import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput, inviteListOutput, addMemberInput, inviteOutput, cancelInviteInput, cancelInviteOutput, removeMemberInput, removeMemberOutput } from "../workspace/workspace.contracts";
@@ -895,6 +896,20 @@ const appRouter = t.router({
       .output(deleteSsoProviderOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
+  lessons: t.router({
+    list: publicProcedure
+      .input(lessonsListInput)
+      .output(lessonsListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    add: publicProcedure
+      .input(lessonAddInput)
+      .output(lessonIdOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .input(lessonIdInput)
+      .output(lessonIdOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
   taskRuns: t.router({
     start: publicProcedure
       .input(taskRunStartInput)
@@ -919,6 +934,22 @@ const appRouter = t.router({
     skip: publicProcedure
       .input(taskRunActionIdInput)
       .output(taskRunDecisionOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    saveStep: publicProcedure
+      .input(taskRunApproveInput)
+      .output(taskRunSaveStepOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    saveWork: publicProcedure
+      .input(taskRunSaveWorkInput)
+      .output(taskRunStartOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    addEmail: publicProcedure
+      .input(taskRunIdInput)
+      .output(taskRunSaveStepOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    finish: publicProcedure
+      .input(taskRunIdInput)
+      .output(taskRunStartOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   todos: t.router({

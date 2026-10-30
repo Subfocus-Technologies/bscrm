@@ -17,6 +17,7 @@
 		"./field-backfill": "./src/field-backfill.ts",
 		"./field-templates": "./src/field-templates.ts",
 		"./investors": "./src/investors.ts",
+		"./lessons": "./src/lessons.ts",
 		"./meeting-notes": "./src/meeting-notes.ts",
 		"./opportunities": "./src/opportunities.ts",
 		"./plain-text": "./src/plain-text.ts",

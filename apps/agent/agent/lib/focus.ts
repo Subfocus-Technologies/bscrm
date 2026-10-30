@@ -16,6 +16,7 @@ export const focus = defineState("crm.focus", () => ({
 	replyRequested: false,
 	opportunityKind: null as OpportunityKind | null,
 	taskRunId: null as string | null,
+	lessonSource: null as string | null,
 	spent: 0,
 	budget: 4,
 	exhausted: false,
@@ -54,6 +55,7 @@ export function focusOn(input: {
 	replyRequested?: boolean;
 	opportunityKind?: OpportunityKind | null;
 	taskRunId?: string | null;
+	lessonSource?: string | null;
 }): void {
 	focus.update((current) => ({
 		...current,
@@ -71,12 +73,21 @@ export function focusOn(input: {
 		replyRequested: input.replyRequested ?? current.replyRequested,
 		opportunityKind: input.opportunityKind ?? current.opportunityKind,
 		taskRunId: input.taskRunId ?? current.taskRunId,
+		lessonSource: input.lessonSource ?? current.lessonSource,
 	}));
 }
 
 export function taskRunFocus(): string | null {
 	try {
 		return focus.get().taskRunId;
+	} catch {
+		return null;
+	}
+}
+
+export function lessonFocus(): string | null {
+	try {
+		return focus.get().lessonSource;
 	} catch {
 		return null;
 	}

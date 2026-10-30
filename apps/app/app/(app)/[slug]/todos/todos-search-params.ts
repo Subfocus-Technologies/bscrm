@@ -11,6 +11,7 @@ export const TODO_VIEWS = [
 	"mine",
 	"done",
 	"ignored",
+	"lessons",
 ] as const;
 
 export type TodoView = (typeof TODO_VIEWS)[number];

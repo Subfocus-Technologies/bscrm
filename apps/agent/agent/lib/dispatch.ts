@@ -1,6 +1,7 @@
 import { EnrichmentStatus } from "@crm/db";
 import { crmEventTask } from "@crm/validation/agent-events";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
+import { lessonSourceKey } from "@crm/validation/lessons";
 import { meetingNotesPayload } from "@crm/validation/meeting-notes";
 import { opportunityReviewPayload } from "@crm/validation/opportunities";
 import {
@@ -17,6 +18,7 @@ import { DISPATCH } from "./dispatch-config";
 import { markRunning, settle } from "./enrichment";
 import { preflightOutreach } from "./investor-outreach";
 import { investorPayload, preflightInvestorResearch } from "./investors";
+import { lessonSourceOf, preflightLessonReview } from "./lessons";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
 import { runSlackChannelJoin } from "./slack-join-task";
@@ -245,6 +247,14 @@ async function beginResearch(
 		}
 	}
 
+	if (task.kind === "lesson-review") {
+		const preflight = await preflightLessonReview(task.payload);
+		if (preflight.kind === "done") {
+			await completeTask(task.id, preflight.outcome);
+			return;
+		}
+	}
+
 	if (task.kind === "business-filing") {
 		const preflight = await preflightFiling(task);
 		if (preflight.kind === "done") {
@@ -359,6 +369,11 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 	if (task.kind === "task-run") {
 		const taskRunId = taskRunIdOf(task.payload);
 		if (taskRunId) records.taskRunId = taskRunId;
+	}
+
+	if (task.kind === "lesson-review") {
+		const source = lessonSourceOf(task.payload);
+		if (source) records.lessonSource = lessonSourceKey(source);
 	}
 
 	if (task.kind === "opportunity-review") {
@@ -571,6 +586,8 @@ function work(
 			return "Read the email conversation in your instructions and work out what our side should do about it, then call propose_todos once. Nothing is sent and nothing becomes a task until a person approves it.";
 		case "task-run":
 			return "Do the to-do in your instructions yourself, read what the CRM holds first, then call submit_task_work once with the finished work and the next steps for approval.";
+		case "lesson-review":
+			return "Compare what you wrote with what a person changed in your instructions, then call save_lessons once. Use no other tool.";
 		case "opportunity-review":
 			return "Search the web for what your instructions ask for, read each page, then call save_opportunities once with the best of them.";
 		case "note-actions":

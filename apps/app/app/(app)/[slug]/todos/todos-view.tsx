@@ -7,6 +7,7 @@ import { useQueryStates } from "nuqs";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
 import { ApprovalsList } from "./approvals-list";
+import { LessonsList } from "./lessons-list";
 import { SuggestionList } from "./suggestion-list";
 import { TaskList } from "./task-list";
 import { TODO_VIEWS, type TodoView, todosParsers } from "./todos-search-params";
@@ -17,6 +18,7 @@ const LABELS = {
 	mine: "My to-dos",
 	done: "Done",
 	ignored: "Ignored",
+	lessons: "What the agent learned",
 } satisfies Record<TodoView, string>;
 
 const SUGGESTIONS_POLL_MS = 60_000;
@@ -32,6 +34,7 @@ export function TodosView() {
 	const page = params[SEARCH_PARAM.list.page];
 	const showsSuggestions = view === "suggested" || view === "ignored";
 	const showsApprovals = view === "approvals";
+	const showsLessons = view === "lessons";
 
 	const suggestions = useQuery({
 		...trpc.todos.suggestions.queryOptions({
@@ -46,10 +49,14 @@ export function TodosView() {
 		placeholderData: (previous) => previous,
 		refetchInterval: SUGGESTIONS_POLL_MS,
 	});
+	const lessons = useQuery({
+		...trpc.lessons.list.queryOptions({ page: showsLessons ? page : 1 }),
+		placeholderData: (previous) => previous,
+	});
 	const tasks = useQuery({
 		...trpc.activities.myTaskPage.queryOptions({
 			view: view === "done" ? "done" : "open",
-			page: showsSuggestions || showsApprovals ? 1 : page,
+			page: showsSuggestions || showsApprovals || showsLessons ? 1 : page,
 		}),
 		placeholderData: (previous) => previous,
 	});
@@ -60,13 +67,16 @@ export function TodosView() {
 		mine: tasks.data?.counts.open,
 		done: tasks.data?.counts.done,
 		ignored: suggestions.data?.counts.IGNORED,
+		lessons: lessons.data?.total,
 	} satisfies Record<TodoView, number | undefined>;
 
-	const shown = showsApprovals
-		? approvals
-		: showsSuggestions
-			? suggestions
-			: tasks;
+	const shown = showsLessons
+		? lessons
+		: showsApprovals
+			? approvals
+			: showsSuggestions
+				? suggestions
+				: tasks;
 	const paging = shown.data && {
 		total: shown.data.total,
 		pageSize: shown.data.pageSize,
@@ -100,7 +110,9 @@ export function TodosView() {
 				</TabsList>
 			</Tabs>
 
-			{showsApprovals ? (
+			{showsLessons ? (
+				<LessonsList query={lessons} />
+			) : showsApprovals ? (
 				<ApprovalsList query={approvals} />
 			) : showsSuggestions ? (
 				<SuggestionList

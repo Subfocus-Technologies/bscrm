@@ -146,6 +146,7 @@ export const AGENT_TOOLS = [
 	"score_investor",
 	"search_crm",
 	"submit_task_work",
+	"save_lessons",
 	"set_chat_title",
 	"set_contact_socials",
 	"set_field_value",
