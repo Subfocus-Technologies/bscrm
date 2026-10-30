@@ -48,6 +48,13 @@ export class GmailClient {
 		return this.api.get<Profile>(`${BASE}/profile`, accessToken);
 	}
 
+	async sendsFrom(accessToken: string, email: string): Promise<boolean> {
+		const account = await this.profile(accessToken);
+		if (account.outcome !== "ok" || !account.data.emailAddress) return true;
+
+		return account.data.emailAddress.toLowerCase() === email.toLowerCase();
+	}
+
 	async listMessages(
 		accessToken: string,
 		options: {

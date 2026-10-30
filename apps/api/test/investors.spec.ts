@@ -33,6 +33,7 @@ const drafting: string[][] = [];
 const sentRaw: { raw: string; threadId: string | null }[] = [];
 let canSend = true;
 const gmail = {
+	sendsFrom: async () => true,
 	sendMessage: async (
 		_token: string,
 		input: { raw: string; threadId: string | null },

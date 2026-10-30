@@ -155,6 +155,12 @@ export class InvestorOutreachService {
 		const references = earlier.flatMap((row) =>
 			row.rfcMessageId ? [row.rfcMessageId] : [],
 		);
+		if (!(await this.gmail.sendsFrom(token.accessToken, sender.email))) {
+			throw new BadRequestException(
+				`Emails only go from ${sender.email}. Connect that Google account first.`,
+			);
+		}
+
 		const body = signedBody(input.body, sender.name);
 
 		const sent = await this.gmail.sendMessage(token.accessToken, {
