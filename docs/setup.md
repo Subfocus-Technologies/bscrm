@@ -135,6 +135,14 @@ DATABASE_URL="…" bunx prisma migrate diff \
   --from-config-datasource --to-schema prisma/schema.prisma --script
 ```
 
+## The Developer button
+
+Settings, General, Developer holds the path of the CRM's code on your computer.
+It is saved per person (`User.developerFolder`). Once set, a Developer button
+shows at the bottom of your side rail. It opens a new Claude Code session in that
+folder through the `claude://` link of the Claude desktop app, with the page you
+are on already in the prompt. A person with no path set sees no button.
+
 ## Secrets hygiene
 
 `.gitignore` ignores `.env` and `.env.*` with one negation for `.env.example`, so

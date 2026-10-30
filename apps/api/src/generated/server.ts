@@ -25,7 +25,7 @@ import { dashboardSummaryInput, dashboardSummaryOutput, businessPerformanceInput
 import { dealListInput, dealListOutput, dealIdInput, dealDetailOutput, dealCreateInput, dealCreateOutput, dealUpdateArgs, dealMutateOutput, setStageInput, dealSetStageOutput, dealContactsInput, dealContactOptionsOutput, dealAttachContactInput, dealContactLinkOutput, dealDetachContactInput, dealContactRoleInput, dealContactRoleOutput, dealBulkOwnerInput, dealBulkResultOutput, dealBulkStageInput, dealBulkInput } from "../deals/deals.contracts";
 import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
 import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput, fieldEntityInput, fieldFiltersOutput, fieldIdInput, fieldCoverageOutput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput, fieldReorderOutput, fieldDeleteOutput, fieldBackfillOutput } from "../fields/fields.contracts";
-import { googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
+import { findAddressesInput, foundAddressesOutput, googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
 import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { fundraiseGetOutput, fundraiseSaveInput, fundraiseOutput, investorListInput, investorListOutput, investorStageInput, investorStageOutput, investorImportInput, investorImportOutput, investorIdsInput, investorQueuedOutput, outreachOutput, sendInvestorEmailInput, sendInvestorEmailOutput, investorEmailIdInput, outreachQueuedOutput, investorAddressInput } from "../investors/investors.contracts";
 import { meetingNotesImportInput, meetingNotesImportOutput, followUpsInput, followUpsOutput, followUpDecideInput, followUpDecideOutput, rereadOutput, incomingNotesInput, incomingNotesOutput, incomingNoteFileInput, incomingNoteFileOutput, incomingNoteIdInput, incomingNoteStatusOutput } from "../meeting-notes/meeting-notes.contracts";
@@ -40,7 +40,7 @@ import { lessonsListInput, lessonsListOutput, lessonAddInput, lessonIdOutput, le
 import { taskRunStartInput, taskRunStartOutput, taskRunIdInput, taskRunOutput, taskRunsListInput, taskRunsListOutput, taskRunStatusesInput, taskRunStatusesOutput, taskRunApproveInput, taskRunDecisionOutput, taskRunActionIdInput, taskRunSaveStepOutput, taskRunSaveWorkInput } from "../todos/task-runs.contracts";
 import { suggestionsInput, suggestionsOutput, addTodoInput, addTodoOutput, suggestionIdInput, suggestionDecisionOutput, scheduleOutput, threadReplyInput, threadReplyOutput, requestReplyInput, requestReplyOutput, sendReplyInput, sendReplyOutput, discardReplyOutput } from "../todos/todos.contracts";
 import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, domainBusinessInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
-import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput, inviteListOutput, addMemberInput, inviteOutput, cancelInviteInput, cancelInviteOutput, removeMemberInput, removeMemberOutput } from "../workspace/workspace.contracts";
+import { workspaceOutput, setDeveloperFolderInput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput, inviteListOutput, addMemberInput, inviteOutput, cancelInviteInput, cancelInviteOutput, removeMemberInput, removeMemberOutput } from "../workspace/workspace.contracts";
 import type { UsersRouter } from "../users/users.router";
 
 const appRouter = t.router({
@@ -618,6 +618,10 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   google: t.router({
+    findAddresses: publicProcedure
+      .input(findAddressesInput)
+      .output(foundAddressesOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     status: publicProcedure
       .output(googleConnectionStatusOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
@@ -1059,6 +1063,10 @@ const appRouter = t.router({
     get: publicProcedure
       .output(workspaceOutput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setDeveloperFolder: publicProcedure
+      .input(setDeveloperFolderInput)
+      .output(workspaceOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     members: publicProcedure
       .input(memberListInput)
       .output(memberListOutput)

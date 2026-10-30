@@ -29,6 +29,7 @@ import {
 } from "../trpc/list-input";
 import type {
 	MemberListInput,
+	SetDeveloperFolderInput,
 	SetMemberRoleInput,
 	UpdateWorkspaceInput,
 	Workspace,
@@ -79,7 +80,13 @@ export class WorkspaceService {
 			);
 		}
 
-		const role = await workspaceRoleOf(userId);
+		const [role, viewer] = await Promise.all([
+			workspaceRoleOf(userId),
+			this.db.user.findUnique({
+				where: { id: userId },
+				select: { developerFolder: true },
+			}),
+		]);
 
 		return {
 			id: row.id,
@@ -90,7 +97,20 @@ export class WorkspaceService {
 			viewerRole: role,
 			canRename: canRenameWorkspace(role),
 			canChangeRoles: canChangeRole(role),
+			developerFolder: viewer?.developerFolder ?? null,
 		};
+	}
+
+	async setDeveloperFolder(
+		userId: string,
+		input: SetDeveloperFolderInput,
+	): Promise<Workspace> {
+		await this.db.user.update({
+			where: { id: userId },
+			data: { developerFolder: input.folder || null },
+		});
+
+		return this.get(userId);
 	}
 
 	async update(

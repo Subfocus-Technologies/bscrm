@@ -36,6 +36,7 @@ import {
 	BusinessRail,
 } from "@/components/businesses/business-rail";
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
+import { DeveloperButton } from "@/components/developer-button";
 import { useMobileNav } from "@/components/mobile-nav";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
@@ -271,6 +272,7 @@ export function AppIconRail() {
 						onPrefetch={() => prefetchSection(item.section)}
 					/>
 				))}
+				<DeveloperButton />
 			</nav>
 
 			<Sheet open={open} onOpenChange={setOpen}>

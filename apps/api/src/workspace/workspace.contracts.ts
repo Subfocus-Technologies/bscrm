@@ -3,6 +3,8 @@ import { MAX_SLUG } from "@crm/db/workspace";
 import { z } from "zod";
 import { listInput } from "../trpc/list-input";
 
+const DEVELOPER_FOLDER_MAX_LENGTH = 400;
+
 export const memberListInput = listInput.extend({
 	role: z.array(z.string()).default([]),
 });
@@ -21,6 +23,14 @@ export const updateWorkspaceInput = z.object({
 		.optional(),
 });
 
+export const setDeveloperFolderInput = z.object({
+	folder: z
+		.string()
+		.trim()
+		.max(DEVELOPER_FOLDER_MAX_LENGTH)
+		.regex(/^(\/|[A-Za-z]:\\|$)/, "Enter the full path of the folder."),
+});
+
 export const setMemberRoleInput = z.object({
 	memberId: z.string().min(1),
 	role: z.enum(WORKSPACE_ROLES),
@@ -28,6 +38,7 @@ export const setMemberRoleInput = z.object({
 
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceInput>;
 export type SetMemberRoleInput = z.infer<typeof setMemberRoleInput>;
+export type SetDeveloperFolderInput = z.infer<typeof setDeveloperFolderInput>;
 
 export const workspaceOutput = z.object({
 	id: z.string(),
@@ -38,6 +49,7 @@ export const workspaceOutput = z.object({
 	viewerRole: z.enum(WORKSPACE_ROLES).nullable(),
 	canRename: z.boolean(),
 	canChangeRoles: z.boolean(),
+	developerFolder: z.string().nullable(),
 });
 
 export type Workspace = z.infer<typeof workspaceOutput>;

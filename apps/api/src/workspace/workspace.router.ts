@@ -22,6 +22,7 @@ import {
 	memberListOutput,
 	removeMemberInput,
 	removeMemberOutput,
+	setDeveloperFolderInput,
 	setMemberRoleInput,
 	updateWorkspaceInput,
 	workspaceMemberOutput,
@@ -44,6 +45,18 @@ export class WorkspaceRouter {
 	})
 	async get(@Ctx() ctx: AuthedTrpcContext) {
 		return this.workspace.get(ctx.user.id);
+	}
+
+	@Mutation({
+		input: setDeveloperFolderInput,
+		output: workspaceOutput,
+		meta: restMeta("PATCH", "/workspace/developer-folder", ["Workspace"]),
+	})
+	async setDeveloperFolder(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof setDeveloperFolderInput>,
+	) {
+		return this.workspace.setDeveloperFolder(ctx.user.id, input);
 	}
 
 	@Query({

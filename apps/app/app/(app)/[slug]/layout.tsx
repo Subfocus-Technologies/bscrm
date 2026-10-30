@@ -87,6 +87,7 @@ async function WorkspaceRail() {
 	await Promise.all([
 		queryClient.prefetchQuery(trpc.businesses.list.queryOptions()),
 		queryClient.prefetchQuery(trpc.businesses.focus.queryOptions()),
+		queryClient.prefetchQuery(trpc.workspace.get.queryOptions()),
 	]);
 
 	return (
