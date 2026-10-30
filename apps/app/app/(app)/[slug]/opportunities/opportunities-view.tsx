@@ -92,7 +92,7 @@ function ReviewStatus({ review }: { review: Review }) {
 		<p className="text-muted-foreground text-xs">
 			Last reviewed{" "}
 			<LocalRelativeTime date={review.finishedAt ?? review.requestedAt} />
-			{review.outcome ? `. ${review.outcome}` : "."}
+			{review.outcome ? `. ${review.outcome.split("\n")[0]}` : "."}
 		</p>
 	);
 }
