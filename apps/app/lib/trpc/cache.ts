@@ -33,6 +33,8 @@ export type CrmCache = {
 	meetingNotes(options?: Options): Promise<void>;
 	investors(options?: Options): Promise<void>;
 	todos(options?: Options): Promise<void>;
+	priorities(options?: Options): Promise<void>;
+	opportunities(options?: Options): Promise<void>;
 	removed(record: RemovedRecord): Promise<void>;
 	removedMany(records: RemovedRecords): Promise<void>;
 	conversationRemoved(id: string): Promise<void>;
@@ -205,6 +207,12 @@ export function useCrmCache(): CrmCache {
 				[],
 				options,
 			),
+
+		priorities: (options) =>
+			run([trpc.priorities.week.queryKey()], [], options),
+
+		opportunities: (options) =>
+			run([trpc.opportunities.list.queryKey()], [], options),
 
 		todos: (options) =>
 			run(

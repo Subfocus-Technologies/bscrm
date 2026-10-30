@@ -34,6 +34,14 @@ export const SEARCH_PARAM = {
 	todos: {
 		view: "todo",
 	},
+	priorities: {
+		week: "week",
+		owner: "weekOwner",
+	},
+	opportunities: {
+		kind: "opportunity",
+		view: "opportunityView",
+	},
 	investors: {
 		section: "section",
 		stage: "step",

@@ -16,6 +16,8 @@ export type Section =
 	| "/investors"
 	| "/meeting-notes"
 	| "/todos"
+	| "/priorities"
+	| "/opportunities"
 	| "/settings";
 
 export function usePrefetchSection(): (section: string) => void {
@@ -62,6 +64,18 @@ export function usePrefetchSection(): (section: string) => void {
 							kinds: [],
 							q: "",
 							sort: "fit",
+							page: 1,
+						}),
+					);
+					return;
+				case "/priorities":
+					void queryClient.prefetchQuery(trpc.priorities.week.queryOptions({}));
+					return;
+				case "/opportunities":
+					void queryClient.prefetchQuery(
+						trpc.opportunities.list.queryOptions({
+							kind: "EVENT",
+							view: "SUGGESTED",
 							page: 1,
 						}),
 					);

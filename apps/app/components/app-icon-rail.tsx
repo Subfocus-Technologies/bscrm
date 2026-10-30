@@ -3,6 +3,8 @@
 import Building from "@carbon/icons-react/es/Building";
 import Close from "@carbon/icons-react/es/Close";
 import Dashboard from "@carbon/icons-react/es/Dashboard";
+import Events from "@carbon/icons-react/es/Events";
+import Flag from "@carbon/icons-react/es/Flag";
 import Growth from "@carbon/icons-react/es/Growth";
 import ListChecked from "@carbon/icons-react/es/ListChecked";
 import Notebook from "@carbon/icons-react/es/Notebook";
@@ -48,6 +50,7 @@ type RailItem = {
 
 const ITEMS: RailItem[] = [
 	{ title: "Overview", href: "/", icon: Dashboard, match: "exact" },
+	{ title: "Priorities", href: "/priorities", icon: Flag, match: "prefix" },
 	{ title: "To-do", href: "/todos", icon: ListChecked, match: "prefix" },
 	{
 		title: "Chat",
@@ -69,6 +72,12 @@ const ITEMS: RailItem[] = [
 		title: "Investors",
 		href: "/investors",
 		icon: Growth,
+		match: "prefix",
+	},
+	{
+		title: "Events, awards and speaking",
+		href: "/opportunities",
+		icon: Events,
 		match: "prefix",
 	},
 	{
