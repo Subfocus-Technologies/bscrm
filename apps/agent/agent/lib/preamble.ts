@@ -1,5 +1,6 @@
 import { db } from "@crm/db";
 import { websiteUrl } from "@crm/db/workspace";
+import type { OpportunityKind } from "@crm/validation/opportunities";
 import {
 	businessesMarkdown,
 	type FilingBusiness,
@@ -13,6 +14,7 @@ import {
 import { capabilitiesMarkdown } from "./capabilities";
 import { investorPreamble } from "./investors";
 import { meetingNotesMarkdown } from "./meeting-notes";
+import { opportunityPreamble } from "./opportunities";
 import {
 	emailActionsMarkdown,
 	meetingActionsMarkdown,
@@ -36,6 +38,7 @@ export type Opened = {
 	mailboxUserId?: string | null;
 	replyRequested?: boolean;
 	replyInstructions?: string | null;
+	opportunityKind?: OpportunityKind | null;
 };
 
 export type Preamble = {
@@ -52,6 +55,9 @@ export async function sessionPreamble(
 	opened: Opened,
 ): Promise<Preamble> {
 	if (opened.kind === "workspace-profile") return workspacePreamble();
+	if (opened.kind === "opportunity-review") {
+		return opportunitySessionPreamble(opened);
+	}
 	if (
 		opened.kind === "investor-discovery" ||
 		opened.kind === "investor-research" ||
@@ -80,6 +86,19 @@ export async function sessionPreamble(
 			await listFilingBusinesses(),
 			await recentDecisions(),
 		)}\n\n${preamble.markdown}`,
+	};
+}
+
+async function opportunitySessionPreamble(opened: Opened): Promise<Preamble> {
+	const markdown = opened.opportunityKind
+		? await opportunityPreamble(opened.opportunityKind)
+		: "## This session\n\nThe task does not say what to look for. Stop and say so.";
+
+	return {
+		markdown: [markdown, await composeClosing(await identity())]
+			.filter(Boolean)
+			.join("\n\n"),
+		focus: {},
 	};
 }
 

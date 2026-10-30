@@ -2,6 +2,7 @@ import { EnrichmentStatus } from "@crm/db";
 import { crmEventTask } from "@crm/validation/agent-events";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { meetingNotesPayload } from "@crm/validation/meeting-notes";
+import { opportunityReviewPayload } from "@crm/validation/opportunities";
 import {
 	emailActionsPayload,
 	meetingActionsPayload,
@@ -337,6 +338,11 @@ export function taskAuth(task: LeasedTask, base: AppAuth = APP_AUTH): AppAuth {
 		if (parsed?.investorId) records.investorId = parsed.investorId;
 	}
 
+	if (task.kind === "opportunity-review") {
+		const parsed = opportunityReviewPayload.safeParse(task.payload);
+		if (parsed.success) records.opportunityKind = parsed.data.kind;
+	}
+
 	if (task.kind === "email-actions") {
 		const parsed = emailActionsPayload.safeParse(task.payload);
 		if (parsed.success) {
@@ -540,6 +546,8 @@ function work(
 			return "Write the email to the investor in your instructions and save it with draft_investor_email. A person approves it before anything is sent.";
 		case "email-actions":
 			return "Read the email conversation in your instructions and work out what our side should do about it, then call propose_todos once. Nothing is sent and nothing becomes a task until a person approves it.";
+		case "opportunity-review":
+			return "Search the web for what your instructions ask for, read each page, then call save_opportunities once with the best of them.";
 		case "note-actions":
 			return "Read the meeting notes in your instructions and call propose_todos once with every action point for our side. Nothing becomes a task until a person approves it.";
 		case "meeting-actions":

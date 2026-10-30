@@ -1,4 +1,5 @@
 import { bumpCounter, COUNTERS } from "@crm/telemetry";
+import type { OpportunityKind } from "@crm/validation/opportunities";
 import { defineState } from "eve/context";
 
 export const focus = defineState("crm.focus", () => ({
@@ -13,6 +14,7 @@ export const focus = defineState("crm.focus", () => ({
 	incomingMeetingNoteId: null as string | null,
 	mailboxUserId: null as string | null,
 	replyRequested: false,
+	opportunityKind: null as OpportunityKind | null,
 	spent: 0,
 	budget: 4,
 	exhausted: false,
@@ -49,6 +51,7 @@ export function focusOn(input: {
 	incomingMeetingNoteId?: string | null;
 	mailboxUserId?: string | null;
 	replyRequested?: boolean;
+	opportunityKind?: OpportunityKind | null;
 }): void {
 	focus.update((current) => ({
 		...current,
@@ -64,7 +67,16 @@ export function focusOn(input: {
 			input.incomingMeetingNoteId ?? current.incomingMeetingNoteId,
 		mailboxUserId: input.mailboxUserId ?? current.mailboxUserId,
 		replyRequested: input.replyRequested ?? current.replyRequested,
+		opportunityKind: input.opportunityKind ?? current.opportunityKind,
 	}));
+}
+
+export function opportunityFocus(): OpportunityKind | null {
+	try {
+		return focus.get().opportunityKind;
+	} catch {
+		return null;
+	}
 }
 
 export type TodoFocus = {

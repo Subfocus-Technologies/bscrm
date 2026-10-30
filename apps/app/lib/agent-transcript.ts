@@ -65,6 +65,7 @@ const VERBS: ToolVerbs = {
 	file_into_business: "Filed the record into a business",
 	propose_follow_ups: "Suggested to-dos and next steps from the notes",
 	propose_todos: "Suggested what to do about an email or a meeting",
+	save_opportunities: "Saved events, awards or speaking slots to review",
 	add_investors: "Added investors to the fundraise pipeline",
 	score_investor: "Scored how well an investor fits the raise",
 	draft_investor_email: "Drafted an email to an investor",

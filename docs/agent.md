@@ -354,6 +354,24 @@ every rule; the tool `propose_todos` is thin.
   waiting REPLY suggestions on that thread become `DONE` and waiting drafts are
   discarded, whoever answered and from wherever.
 
+## Events, awards and speaking
+
+`opportunity-review` is a research-lane task. It runs only when a person presses
+a review button on the page; no schedule queues it. `lib/opportunities.ts` holds
+every rule and the tool `save_opportunities` is thin.
+
+- **One open review per kind.** `AgentTask.subject` is `EVENT`, `AWARD` or
+  `SPEAKING`, and `opportunityReviewRequested` refuses a second while one is open.
+- **The brief carries our businesses and what we already decided.** It lists
+  every title on our list and every title we turned down, so a review does not
+  suggest them again.
+- **The tool, not the model, decides what lands.** `saveOpportunities` drops an
+  item already on the list, by address or by title, a date that has passed, an
+  event with no start date, and a link that does not open. A site that refuses
+  a robot still counts as open; only no answer, 404 and 410 count as dead.
+- **Nothing is booked or entered.** People mark an item planned or not for us,
+  and name its owner, through `opportunities.update`.
+
 ## Evidence, not confidence
 
 **No tool accepts a confidence, a score, or a `sourceUrl` offered as proof.** Tools

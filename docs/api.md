@@ -245,6 +245,19 @@ Two rules follow for the serverless build:
   UI says the consent itself is removed in the user's Microsoft account. Google's still
   posts to `oauth2.googleapis.com/revoke` and refuses to clear if that fails.
 
+## Weekly priorities are shared, and a week is a view
+
+`priorities.*` keeps the team's work in `WeeklyPriority`, visible to everyone.
+Each row records who created it and who last changed it.
+
+- **A week starts on Monday at midnight UK time** (`workspaceWeekStart`,
+  `@crm/db/day`), so the clock change moves nothing.
+- **Open work carries forward.** A week shows every row in `PRIORITY` or
+  `ONGOING` planned for that week or earlier, marked as carried over, and every
+  row `DONE` inside that week.
+- **Updates send only the fields that changed**, so two people editing different
+  fields of one row keep both changes.
+
 ## Not every address on a thread is a person
 
 `externalParticipants` (`mailbox/participants.ts`) is the one gate, discarding **us**

@@ -18,6 +18,8 @@
 		"./field-templates": "./src/field-templates.ts",
 		"./investors": "./src/investors.ts",
 		"./meeting-notes": "./src/meeting-notes.ts",
+		"./opportunities": "./src/opportunities.ts",
+		"./priorities": "./src/priorities.ts",
 		"./saved-view": "./src/saved-view.ts",
 		"./todos": "./src/todos.ts"
 	},

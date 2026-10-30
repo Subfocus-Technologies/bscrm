@@ -140,6 +140,7 @@ export const AGENT_TOOLS = [
 	"research_company",
 	"research_person",
 	"resolve_linkedin_profile",
+	"save_opportunities",
 	"schedule_recheck",
 	"score_investor",
 	"search_crm",

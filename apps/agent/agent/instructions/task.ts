@@ -1,3 +1,4 @@
+import { OPPORTUNITY_KINDS } from "@crm/validation/opportunities";
 import { defineDynamic, defineInstructions } from "eve/instructions";
 import { z } from "zod";
 import { focusOn, setBudget } from "../lib/focus";
@@ -6,6 +7,11 @@ import { RESEARCH_INSTRUCTIONS } from "../lib/research-instructions";
 import { attribute, purposeOf } from "../lib/session-purpose";
 
 const attributeText = z.string().trim().min(1).nullable().catch(null);
+
+const attributeOpportunityKind = z
+	.enum(OPPORTUNITY_KINDS)
+	.nullable()
+	.catch(null);
 
 const attributeNumber = z
 	.union([z.string(), z.number()])
@@ -44,6 +50,9 @@ export default defineDynamic({
 				attributes.incomingMeetingNoteId,
 			);
 			const mailboxUserId = attributeText.parse(attributes.mailboxUserId);
+			const opportunityKind = attributeOpportunityKind.parse(
+				attributes.opportunityKind,
+			);
 			const replyRequested =
 				attributeText.parse(attributes.replyRequested) === "true";
 			const replyInstructions = attributeText.parse(
@@ -71,6 +80,7 @@ export default defineDynamic({
 					mailboxUserId,
 					replyRequested,
 					replyInstructions,
+					opportunityKind,
 				},
 			);
 
@@ -85,6 +95,7 @@ export default defineDynamic({
 				incomingMeetingNoteId,
 				mailboxUserId,
 				replyRequested,
+				opportunityKind,
 			});
 
 			return defineInstructions({

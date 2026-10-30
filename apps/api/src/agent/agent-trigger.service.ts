@@ -6,6 +6,10 @@ import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { queueInvestorTasks } from "@crm/db/investors";
 import { fieldBackfillPayload } from "@crm/validation/field-backfill";
 import { INVESTORS, type InvestorTaskPayload } from "@crm/validation/investors";
+import {
+	OPPORTUNITIES,
+	type OpportunityKind,
+} from "@crm/validation/opportunities";
 import { type EmailActionsPayload, TODOS } from "@crm/validation/todos";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
@@ -529,6 +533,35 @@ export class AgentTriggerService {
 			message: "Agent task queued",
 			kind: "investor-discovery",
 			fundraiseId,
+		});
+
+		this.poke();
+
+		return true;
+	}
+
+	async opportunityReviewRequested(kind: OpportunityKind): Promise<boolean> {
+		const pending = await this.db.agentTask.count({
+			where: { kind: "opportunity-review", finishedAt: null, subject: kind },
+		});
+		if (pending > 0) return false;
+
+		await this.db.agentTask.create({
+			data: {
+				kind: "opportunity-review",
+				reason: "A person asked for a review",
+				priority: PRIORITY.requested,
+				budget: OPPORTUNITIES.review.budget,
+				dueAt: new Date(),
+				subject: kind,
+				payload: { kind } satisfies Prisma.InputJsonValue,
+			},
+		});
+
+		this.logger.log({
+			message: "Agent task queued",
+			kind: "opportunity-review",
+			opportunityKind: kind,
 		});
 
 		this.poke();

@@ -30,6 +30,8 @@ import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOut
 import { fundraiseGetOutput, fundraiseSaveInput, fundraiseOutput, investorListInput, investorListOutput, investorStageInput, investorStageOutput, investorImportInput, investorImportOutput, investorIdsInput, investorQueuedOutput, outreachOutput, sendInvestorEmailInput, sendInvestorEmailOutput, investorEmailIdInput, outreachQueuedOutput, investorAddressInput } from "../investors/investors.contracts";
 import { meetingNotesImportInput, meetingNotesImportOutput, followUpsInput, followUpsOutput, followUpDecideInput, followUpDecideOutput, rereadOutput, incomingNotesInput, incomingNotesOutput, incomingNoteFileInput, incomingNoteFileOutput, incomingNoteIdInput, incomingNoteStatusOutput } from "../meeting-notes/meeting-notes.contracts";
 import { nextMeetingsOutput, upcomingMeetingsInput, upcomingMeetingsOutput, prepareMeetingInput, prepareMeetingOutput } from "../meetings/meetings.contracts";
+import { opportunitiesListInput, opportunitiesListOutput, opportunityKindInput, opportunityReviewOutput, opportunityUpdateInput, opportunityOutput } from "../opportunities/opportunities.contracts";
+import { prioritiesWeekInput, prioritiesWeekOutput, priorityCreateInput, priorityOutput, priorityUpdateInput, priorityIdInput, priorityRemoveOutput } from "../priorities/priorities.contracts";
 import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
 import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput } from "../settings/settings.contracts";
 import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
@@ -753,6 +755,38 @@ const appRouter = t.router({
     setAutoCreate: publicProcedure
       .input(setOutlookAutoCreateInput)
       .output(microsoftConnectionStatusOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  opportunities: t.router({
+    list: publicProcedure
+      .input(opportunitiesListInput)
+      .output(opportunitiesListOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    review: publicProcedure
+      .input(opportunityKindInput)
+      .output(opportunityReviewOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    update: publicProcedure
+      .input(opportunityUpdateInput)
+      .output(opportunityOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  priorities: t.router({
+    week: publicProcedure
+      .input(prioritiesWeekInput)
+      .output(prioritiesWeekOutput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    create: publicProcedure
+      .input(priorityCreateInput)
+      .output(priorityOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    update: publicProcedure
+      .input(priorityUpdateInput)
+      .output(priorityOutput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .input(priorityIdInput)
+      .output(priorityRemoveOutput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   savedViews: t.router({

@@ -19,6 +19,7 @@ export const TASK_KINDS = [
 	"email-actions",
 	"meeting-actions",
 	"note-actions",
+	"opportunity-review",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];
