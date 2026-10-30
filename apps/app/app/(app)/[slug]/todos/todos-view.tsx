@@ -6,12 +6,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useQueryStates } from "nuqs";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
+import { ApprovalsList } from "./approvals-list";
 import { SuggestionList } from "./suggestion-list";
 import { TaskList } from "./task-list";
 import { TODO_VIEWS, type TodoView, todosParsers } from "./todos-search-params";
 
 const LABELS = {
 	suggested: "Suggested",
+	approvals: "Approvals",
 	mine: "My to-dos",
 	done: "Done",
 	ignored: "Ignored",
@@ -29,6 +31,7 @@ export function TodosView() {
 	const view = params[SEARCH_PARAM.todos.view];
 	const page = params[SEARCH_PARAM.list.page];
 	const showsSuggestions = view === "suggested" || view === "ignored";
+	const showsApprovals = view === "approvals";
 
 	const suggestions = useQuery({
 		...trpc.todos.suggestions.queryOptions({
@@ -38,32 +41,37 @@ export function TodosView() {
 		placeholderData: (previous) => previous,
 		refetchInterval: SUGGESTIONS_POLL_MS,
 	});
+	const approvals = useQuery({
+		...trpc.taskRuns.list.queryOptions({ page: showsApprovals ? page : 1 }),
+		placeholderData: (previous) => previous,
+		refetchInterval: SUGGESTIONS_POLL_MS,
+	});
 	const tasks = useQuery({
 		...trpc.activities.myTaskPage.queryOptions({
 			view: view === "done" ? "done" : "open",
-			page: showsSuggestions ? 1 : page,
+			page: showsSuggestions || showsApprovals ? 1 : page,
 		}),
 		placeholderData: (previous) => previous,
 	});
 
 	const counts = {
 		suggested: suggestions.data?.counts.PROPOSED,
+		approvals: approvals.data?.total,
 		mine: tasks.data?.counts.open,
 		done: tasks.data?.counts.done,
 		ignored: suggestions.data?.counts.IGNORED,
 	} satisfies Record<TodoView, number | undefined>;
 
-	const paging = showsSuggestions
-		? suggestions.data && {
-				total: suggestions.data.total,
-				pageSize: suggestions.data.pageSize,
-				loading: suggestions.isFetching,
-			}
-		: tasks.data && {
-				total: tasks.data.total,
-				pageSize: tasks.data.pageSize,
-				loading: tasks.isFetching,
-			};
+	const shown = showsApprovals
+		? approvals
+		: showsSuggestions
+			? suggestions
+			: tasks;
+	const paging = shown.data && {
+		total: shown.data.total,
+		pageSize: shown.data.pageSize,
+		loading: shown.isFetching,
+	};
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -92,7 +100,9 @@ export function TodosView() {
 				</TabsList>
 			</Tabs>
 
-			{showsSuggestions ? (
+			{showsApprovals ? (
+				<ApprovalsList query={approvals} />
+			) : showsSuggestions ? (
 				<SuggestionList
 					view={view === "ignored" ? "IGNORED" : "PROPOSED"}
 					query={suggestions}

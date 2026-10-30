@@ -13,16 +13,19 @@ import {
 import { Icon } from "@crm/ui/components/icon";
 import { Spinner } from "@crm/ui/components/spinner";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { LocalDay, LocalRelativeTime } from "@/components/local-date-time";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { TaskRunSheet } from "./task-run-sheet";
 
 type TaskPage = RouterOutputs["activities"]["myTaskPage"];
 type Task = TaskPage["rows"][number];
+type RunState = RouterOutputs["taskRuns"]["statuses"][number];
 
 function contactName(contact: NonNullable<Task["contact"]>): string {
 	return [contact.firstName, contact.lastName].filter(Boolean).join(" ");
@@ -76,7 +79,19 @@ function TaskDue({ task }: { task: Task }) {
 	);
 }
 
-function TaskRow({ task }: { task: Task }) {
+const RUNS_POLL_MS = 15_000;
+
+function runLabel(run: RunState | undefined): string {
+	if (!run) return "Do it for me";
+	if (run.status === "QUEUED" || run.status === "WORKING") return "Working";
+	if (run.status === "AWAITING_APPROVAL") {
+		return run.waiting === 1 ? "Review 1 step" : `Review ${run.waiting} steps`;
+	}
+	if (run.status === "FAILED") return "Try again";
+	return "View the work";
+}
+
+function TaskRow({ task, run }: { task: Task; run: RunState | undefined }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 	const complete = useMutation(
@@ -86,6 +101,8 @@ function TaskRow({ task }: { task: Task }) {
 		}),
 	);
 	const done = task.completedAt !== null;
+	const [working, setWorking] = useState(false);
+	const busy = run?.status === "QUEUED" || run?.status === "WORKING";
 
 	return (
 		<li className="flex items-start gap-3 px-4 py-3 text-sm md:px-5">
@@ -107,6 +124,25 @@ function TaskRow({ task }: { task: Task }) {
 					<TaskDue task={task} />
 				</span>
 			</div>
+			{done && !run ? null : (
+				<Button
+					size="sm"
+					variant={run ? "outline" : "default"}
+					onClick={() => setWorking(true)}
+				>
+					{busy ? <Spinner /> : null}
+					{runLabel(run)}
+				</Button>
+			)}
+			{working ? (
+				<TaskRunSheet
+					taskId={task.id}
+					title={task.subject ?? "Untitled task"}
+					runId={run?.status === "FAILED" ? null : (run?.runId ?? null)}
+					open={working}
+					onOpenChange={setWorking}
+				/>
+			) : null}
 		</li>
 	);
 }
@@ -136,6 +172,15 @@ export function TaskList({
 		refetch: () => unknown;
 	};
 }) {
+	const trpc = useTRPC();
+	const taskIds = query.data?.rows.map((task) => task.id) ?? [];
+	const runs = useQuery({
+		...trpc.taskRuns.statuses.queryOptions({ taskIds }),
+		enabled: taskIds.length > 0,
+		refetchInterval: RUNS_POLL_MS,
+	});
+	const runOf = new Map(runs.data?.map((run) => [run.taskId, run]));
+
 	if (query.isPending) {
 		return (
 			<div className="flex justify-center py-12">
@@ -175,7 +220,7 @@ export function TaskList({
 	return (
 		<ul className="flex flex-col divide-y rounded-lg border">
 			{query.data.rows.map((task) => (
-				<TaskRow key={task.id} task={task} />
+				<TaskRow key={task.id} task={task} run={runOf.get(task.id)} />
 			))}
 		</ul>
 	);

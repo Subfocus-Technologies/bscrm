@@ -34,6 +34,7 @@ export type CrmCache = {
 	investors(options?: Options): Promise<void>;
 	todos(options?: Options): Promise<void>;
 	priorities(options?: Options): Promise<void>;
+	taskRuns(options?: Options): Promise<void>;
 	opportunities(options?: Options): Promise<void>;
 	removed(record: RemovedRecord): Promise<void>;
 	removedMany(records: RemovedRecords): Promise<void>;
@@ -205,6 +206,17 @@ export function useCrmCache(): CrmCache {
 					trpc.investors.outreachQueue.queryKey(),
 				],
 				[],
+				options,
+			),
+
+		taskRuns: (options) =>
+			run(
+				[
+					trpc.taskRuns.get.queryKey(),
+					trpc.taskRuns.list.queryKey(),
+					trpc.taskRuns.statuses.queryKey(),
+				],
+				activityKeys(),
 				options,
 			),
 

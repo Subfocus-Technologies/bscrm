@@ -66,6 +66,8 @@ const VERBS: ToolVerbs = {
 	propose_follow_ups: "Suggested to-dos and next steps from the notes",
 	propose_todos: "Suggested what to do about an email or a meeting",
 	save_opportunities: "Saved events, awards or speaking slots to review",
+	read_repo: "Read our code",
+	submit_task_work: "Handed over finished work for approval",
 	add_investors: "Added investors to the fundraise pipeline",
 	score_investor: "Scored how well an investor fits the raise",
 	draft_investor_email: "Drafted an email to an investor",

@@ -5,7 +5,13 @@ import {
 } from "nuqs/server";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 
-export const TODO_VIEWS = ["suggested", "mine", "done", "ignored"] as const;
+export const TODO_VIEWS = [
+	"suggested",
+	"approvals",
+	"mine",
+	"done",
+	"ignored",
+] as const;
 
 export type TodoView = (typeof TODO_VIEWS)[number];
 
