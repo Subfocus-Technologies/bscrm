@@ -111,7 +111,12 @@ export const foundAddressOutput = z.object({
 
 export type FoundAddress = z.infer<typeof foundAddressOutput>;
 
-export const foundAddressesOutput = z.array(foundAddressOutput);
+export const foundAddressesOutput = z.object({
+	people: z.array(foundAddressOutput),
+	gmail: z.enum(["searched", "not-connected", "needs-reconnect", "failed"]),
+});
+
+export type FoundAddresses = z.infer<typeof foundAddressesOutput>;
 
 export const emailThreadOutput = z.object({
 	id: z.string(),

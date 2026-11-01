@@ -1,6 +1,7 @@
 import type { Db } from "@crm/db";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
+import type { MailboxResult } from "../mailbox/mailbox-api.client";
 import { MailboxTokenService } from "../mailbox/mailbox-token.service";
 import {
 	isAutomatedAddress,
@@ -11,7 +12,10 @@ import {
 import { GmailClient, type GmailMessage } from "./gmail.client";
 import { header } from "./gmail-mime";
 import { ADDRESS_SEARCH } from "./google.constants";
-import type { FoundAddress } from "./google.contracts";
+import type { FoundAddress, FoundAddresses } from "./google.contracts";
+
+type GmailSearch = FoundAddresses["gmail"];
+type GmailSearchResult = { people: FoundAddress[]; gmail: GmailSearch };
 
 function wordsOf(query: string): string[] {
 	return query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -67,15 +71,23 @@ export function rankPeople(
 		.map(({ email, name }) => ({ email, name }));
 }
 
+function searchStatusOf(
+	outcome: MailboxResult<unknown>["outcome"],
+): GmailSearch {
+	return outcome === "unauthorized" ? "needs-reconnect" : "failed";
+}
+
 @Injectable()
 export class AddressFinderService {
+	private readonly logger = new Logger(AddressFinderService.name);
+
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly gmail: GmailClient,
 		private readonly tokens: MailboxTokenService,
 	) {}
 
-	async find(userId: string, query: string): Promise<FoundAddress[]> {
+	async find(userId: string, query: string): Promise<FoundAddresses> {
 		const words = wordsOf(query);
 		const [contacts, mail] = await Promise.all([
 			this.fromContacts(words),
@@ -83,13 +95,16 @@ export class AddressFinderService {
 		]);
 
 		const unique = new Map(
-			[...mail, ...contacts].map((person) => [
+			[...mail.people, ...contacts].map((person) => [
 				person.email.toLowerCase(),
 				person,
 			]),
 		);
 
-		return [...unique.values()].slice(0, ADDRESS_SEARCH.maxResults);
+		return {
+			people: [...unique.values()].slice(0, ADDRESS_SEARCH.maxResults),
+			gmail: mail.gmail,
+		};
 	}
 
 	private async fromContacts(words: readonly string[]) {
@@ -125,15 +140,26 @@ export class AddressFinderService {
 		userId: string,
 		query: string,
 		words: readonly string[],
-	): Promise<FoundAddress[]> {
+	): Promise<GmailSearchResult> {
 		const token = await this.tokens.accessTokenFor(userId, "gmail");
-		if (token.outcome !== "ok") return [];
+		if (token.outcome === "not-connected") {
+			return { people: [], gmail: "not-connected" };
+		}
+		if (token.outcome !== "ok") {
+			return this.notSearched(userId, token.outcome, token.reason);
+		}
 
 		const listed = await this.gmail.searchMessages(token.accessToken, {
 			query: addressQuery(query),
 			maxResults: ADDRESS_SEARCH.messagesRead,
 		});
-		if (listed.outcome !== "ok") return [];
+		if (listed.outcome !== "ok") {
+			return this.notSearched(
+				userId,
+				searchStatusOf(listed.outcome),
+				listed.reason,
+			);
+		}
 
 		const ids = (listed.data.messages ?? []).flatMap((message) =>
 			message.id ? [message.id] : [],
@@ -146,12 +172,35 @@ export class AddressFinderService {
 			...ids.map((id) => this.gmail.getMessageHeaders(token.accessToken, id)),
 		]);
 
-		return rankPeople(
-			read.flatMap((message) =>
-				message.outcome === "ok" ? [message.data] : [],
-			),
-			words,
-			user.email,
+		const messages = read.flatMap((message) =>
+			message.outcome === "ok" ? [message.data] : [],
 		);
+		const unread = read.find((message) => message.outcome !== "ok");
+		if (messages.length === 0 && unread) {
+			return this.notSearched(
+				userId,
+				searchStatusOf(unread.outcome),
+				unread.reason,
+			);
+		}
+
+		return {
+			people: rankPeople(messages, words, user.email),
+			gmail: "searched",
+		};
+	}
+
+	private notSearched(
+		userId: string,
+		gmail: GmailSearch,
+		reason: string,
+	): GmailSearchResult {
+		this.logger.warn({
+			message: "Address search could not read Gmail",
+			userId,
+			gmail,
+			reason,
+		});
+		return { people: [], gmail };
 	}
 }

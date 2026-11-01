@@ -383,7 +383,9 @@ out what a person approves.
 - **The agent names who an email goes to.** It sets \`toName\` on an \`EMAIL\`
   step. \`google.findAddresses\` searches that person's own Gmail and the CRM's
   contacts, and the To field fills itself when exactly one address matches.
-  Several matches show as buttons. Nothing is sent without approval.
+  Several matches show as buttons. Nothing is sent without approval. The search
+  also reports whether it read Gmail. When it did not, the field says so, shows
+  contacts only and does not fill itself.
 - **An email is a step, not a document.** The agent puts an email in an `EMAIL`
   step, with `to` empty when the CRM does not hold the address. A person fills
   in the address, edits the copy and sends. `Turn into an email` makes the same
